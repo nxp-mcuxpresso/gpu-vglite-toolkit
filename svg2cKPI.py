@@ -63,9 +63,12 @@ def path_convert2vglite(p_cmd_arg, p_datatype, p_x_offset, p_y_offset):
     while i < len(cmd_arg_list):
         if cmd_arg_list[i] in VGLITE_PATH_COMMANDS:
             command = cmd_arg_list[i]
-            line = "    {.cmd=" + VGLITE_PATH_COMMAND_MNEMONICS[cmd_arg_list[i]] + "}, "
-            argCnt = VGLITE_PATH_COMMAND_ARGCNT[cmd_arg_list[i]]
             i += 1
+            if VGLITE_PATH_COMMAND_MNEMONICS[command]  == "VLC_OP_CLOSE":
+                #ignore the close opcode. VSI VGLite does not handle it well.
+                continue
+            line = "    {.cmd=" + VGLITE_PATH_COMMAND_MNEMONICS[command] + "}, "
+            argCnt = VGLITE_PATH_COMMAND_ARGCNT[command]
             for x in range(argCnt):
                 coord = float(cmd_arg_list[i])
                 #expect x coordinate is even and y coordinate is odd. This will fail for arc commands.
@@ -73,7 +76,8 @@ def path_convert2vglite(p_cmd_arg, p_datatype, p_x_offset, p_y_offset):
                     coord += p_y_offset
                 else:
                     coord += p_x_offset
-                line += "{.data=(" + p_datatype +")" + str(coord) + " }, "
+                #line += "{.data=(" + p_datatype +")" + str(coord) + " }, "
+                line += "{.data=(%s) %.2f}," % (p_datatype, coord)
                 i += 1
             lines.append(line)
         else:
@@ -101,12 +105,13 @@ i = 0
 color_data = []
 
 data_type = "int32_t"
+#data_type = "float"
 
 VGLITE_DATA_TYPES = {
     "int8_t" : "VG_LITE_S8",
     "int16_t" : "VG_LITE_S16",
     "int32_t" : "VG_LITE_S32",
-    "float"  :  "VG_LITE_F32"
+    "float"  :  "VG_LITE_FP32"
 }
 
 
@@ -122,8 +127,13 @@ print("")
 print("#include \"vg_lite.h\"")
 print("")
 print("typedef union data_mnemonic {")
-print("    int32_t  cmd;")
-print("    %s  data;" % data_type)
+
+if data_type == "float":
+    print("    uint32_t cmd;")
+else:
+    print("    %s cmd;" % data_type)
+
+print("    %s data;" % data_type)
 print("} data_mnemonic_t;")
 print("")
 print("typedef struct path_info {")
