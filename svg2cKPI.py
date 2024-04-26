@@ -156,14 +156,10 @@ print("")
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
-
-
-
+    path_str = redpath.d().replace(',',' ')
     print("static data_mnemonic_t %s_%s_data[] = {" % (imageName, attributes[i]['id']))
-
-    #lines = path_convert2vglite(attributes[i]['d'], data_type, 3.8, -90.225) #smartwatch
-    #lines = path_convert2vglite(attributes[i]['d'], data_type, -34.184, -189.8430)  #car_manometer
-    lines = path_convert2vglite(attributes[i]['d'], data_type, -2.415, -0.1453)  #music_player.svg
+    lines = path_convert2vglite(path_str, data_type, 0, 0)
+     
     for line in lines:
         print(line)
     print("    {.cmd=VLC_OP_END}")
