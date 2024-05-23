@@ -197,7 +197,7 @@ for redpath in paths:
     if 'style' in attributes[i] and attributes[i]['style'] != 'none':
         # fill-paint
         #m = re.match(r'rgb\((\d+),(\d+),(\d+)\)', attributes[i]['fill'])
-        m = re.search(r'fill:#(\w+);', attributes[i]['style'])
+        m = re.search(r'fill:#(\w+)', attributes[i]['style'])
         opacity = re.search(r'fill-opacity:(\d+);', attributes[i]['style'])
         if m:
             color = int(m.group(1), 16)
