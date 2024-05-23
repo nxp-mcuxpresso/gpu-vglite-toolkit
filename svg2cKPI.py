@@ -174,12 +174,19 @@ for redpath in paths:
     out_cmd = []
     out_arg = []
 
-    if 'fill' in attributes and attributes[i]['fill'] != 'none':
+    if 'fill' in attributes[i] and attributes[i]['fill'] != 'none':
         cmd_add(out_cmd, attributes[i], 'fill-rule')
         cmd_add(out_cmd, attributes[i], 'fill-opacity')
         # fill-paint
-        m = re.match(r'rgb\((\d+),(\d+),(\d+)\)', attributes[i]['fill'])
+        m = re.search(r'#([0-9a-fA-F]{6})', attributes[i]['fill'])
+        n = re.match(r'rgb\((\d+),(\d+),(\d+)\)', attributes[i]['fill'])
         if m:
+            color = m.group(1)
+            opa = "ff"
+            hex_color = opa + color
+            hex_color = int(hex_color, 16)
+            color_data.append("%x" % hex_color)
+        elif n:
             r=int(m.group(1))
             g=int(m.group(2))
             b=int(m.group(3))
