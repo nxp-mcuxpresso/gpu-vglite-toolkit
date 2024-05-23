@@ -39,13 +39,18 @@ def path_split(p_cmd_arg):
     return (cmd,arg)
 
 VGLITE_PATH_COMMANDS = [
-    'M', 'L', 'C', 'Z'
+    'M', 'L', 'C', 'Q', 'S', 'T', 'V', 'H', 'Z'
 ]
 
 VGLITE_PATH_COMMAND_MNEMONICS = {
     'M': "VLC_OP_MOVE",
     "L": "VLC_OP_LINE",
     "C": "VLC_OP_CUBIC",
+    "Q": "VLC_OP_QUAD",
+    "S": "VLC_OP_QUAD",
+    "T": "VLC_OP_LINE",
+    "V": "VLC_OP_LINE",
+    "H": "VLC_OP_LINE",
     "Z": "VLC_OP_CLOSE"
 }
 
@@ -53,6 +58,11 @@ VGLITE_PATH_COMMAND_ARGCNT = {
     "M": 2,
     "L": 2,
     "C": 6,
+    "Q": 4,
+    "S": 4,
+    "T": 2,
+    "V": 2,
+    "H": 2,
     "Z": 0
 }
 
