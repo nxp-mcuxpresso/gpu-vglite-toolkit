@@ -164,10 +164,19 @@ print("#endif")
 print("")
 print("")
 
+counter = 0
+generated_ids = []
+def generate_id(name):
+    global counter
+    counter += 1
+    return f"{name}_{counter}"
+
 for redpath in paths:
     p_cmd_arg = redpath.d()
     path_str = redpath.d().replace(',',' ')
-    print("static data_mnemonic_t %s_%s_data[] = {" % (imageName, attributes[i]['id']))
+    new_id_value = generate_id(attributes[i]['name'])
+    generated_ids.append(new_id_value)
+    print("static data_mnemonic_t %s_%s_data[] = {" % (imageName, new_id_value))
     lines = path_convert2vglite(path_str, data_type, 0, 0)
      
     for line in lines:
@@ -266,8 +275,8 @@ print("    .image_size = {%d, %d}," % (int(float(svg_attributes['width'])), int(
 print("    .data_format = %s," % VGLITE_DATA_TYPES[data_type])
 print("    .path_count = %d," % len(paths))
 print("    .paths_info = {")
-for i in range(len(paths)):
-    path_name = "%s_%s_data" % (imageName, attributes[i]['id'])
+for i, new_id_value in enumerate(generated_ids):
+    path_name = "%s_%s_data" % (imageName, new_id_value)
     if i == len(paths) - 1:
         print("        {.path_length = sizeof(%s), .path_data=(%s*)%s }" % (path_name, data_type, path_name))
     else:
