@@ -367,7 +367,7 @@ for redpath in paths:
             b=int(m.group(3))
             color_data.append("0x%x" % (r * 65536 + g * 256 + b))
         else:
-            print("ERROR")
+            print("Error: Fill value not supported", sep="---",file=sys.stderr)
 
     if 'fill' in attributes[i]:
         fill_value = attributes[i].get('fill')
@@ -393,7 +393,7 @@ for redpath in paths:
                 g=int(m.group(2))
                 b=int(m.group(3))
             else:
-                print("ERROR")
+                print("Error: Style value not supported", sep="---",file=sys.stderr)
                 assert(0)
         if opacity:
             opa = int(255*float(opacity.group(1)))
@@ -422,7 +422,7 @@ for redpath in paths:
             b=int(m.group(3))
             out_arg.extend([r/255, g/255, b/255, 1.0])
         else:
-            print("ERROR")
+            print("Error: Stroke value not supported", sep="---",file=sys.stderr)
 
     # add the Path
     out_arg.extend([len(p_arg)])
