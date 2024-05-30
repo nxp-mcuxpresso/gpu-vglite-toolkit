@@ -357,10 +357,10 @@ for redpath in paths:
             color_data.append("%x" % ((opa << 24) | (b << 16) | (g << 8) | r))
         elif m:
             color = m.group(1)
-            opa = "ff"
-            hex_color = opa + color
-            hex_color = int(hex_color, 16)
-            color_data.append("%x" % hex_color)
+            r = color[0:2]
+            g = color[2:4]
+            b = color[4:6]
+            color_data.append("ff%s%s%s" % (b,g,r))
         elif n:
             r=int(m.group(1))
             g=int(m.group(2))
@@ -368,6 +368,13 @@ for redpath in paths:
             color_data.append("0x%x" % (r * 65536 + g * 256 + b))
         else:
             print("ERROR")
+
+    if 'fill' in attributes[i]:
+        fill_value = attributes[i].get('fill')
+        if fill_value == 'none':
+            color = 0xff000000  # Black color value
+            color = f"{color:08x}"
+            color_data.append(color)
 
     if 'style' in attributes[i] and attributes[i]['style'] != 'none':
         # fill-paint
