@@ -465,6 +465,47 @@ for color in color_data:
 print(line)
 
 print("};")
+print("")
+
+print("#if VGLITE_HEADER_VERSION <= 6");
+print("#define TEST_DATA_MAX 10");
+print("#define APP_VG_LITE_DRAW_ZERO               (VG_LITE_DRAW_STROKE_PATH)");
+print("#define APP_VG_LITE_DRAW_STROKE_PATH        (VG_LITE_DRAW_STROKE_PATH)");
+print("#define APP_VG_LITE_DRAW_FILL_PATH          (VG_LITE_DRAW_FILL_PATH)");
+print("#define APP_VG_LITE_DRAW_FILL_STROKE_PATH   (VG_LITE_DRAW_FILL_STROKE_PATH)");
+print("#define APP_PATH_FILL_TYPE  vg_lite_draw_path_type_t")
+
+print("#else");
+print("#define TEST_DATA_MAX 12");
+print("#define APP_VG_LITE_DRAW_ZERO               (VG_LITE_DRAW_ZERO)");
+print("#define APP_VG_LITE_DRAW_STROKE_PATH        (VG_LITE_DRAW_STROKE_PATH)");
+print("#define APP_VG_LITE_DRAW_FILL_PATH          (VG_LITE_DRAW_FILL_PATH)");
+print("#define APP_VG_LITE_DRAW_FILL_STROKE_PATH   (VG_LITE_DRAW_FILL_STROKE_PATH)");
+print("#define APP_PATH_FILL_TYPE  vg_lite_path_type_t")
+print("#endif");
+print("")
+
+lines = []
+for i in range(len(paths)):
+    if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
+        lines.append("APP_VG_LITE_DRAW_ZERO")
+    elif ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
+        lines.append("APP_VG_LITE_DRAW_STROKE_PATH")
+    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
+        lines.append("APP_VG_LITE_DRAW_FILL_PATH")
+    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
+        lines.append("APP_VG_LITE_DRAW_FILL_STROKE_PATH")
+    else:
+        lines.append("APP_VG_LITE_DRAW_FILL_PATH")
+
+print("APP_PATH_FILL_TYPE %s_path_type[] = {" % imageName);
+for i in range(len(lines)):
+    if i == len(lines) - 1:
+        print(lines[i])  # Last line without a trailing comma
+    else:
+        print(lines[i] + ",")
+print("};")
+
 
 #print(g_cmd)
 #print(g_arg)
