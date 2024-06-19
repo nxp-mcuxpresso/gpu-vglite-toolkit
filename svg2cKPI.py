@@ -323,6 +323,7 @@ def generate_id(name):
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
+    print(f"/*path id={attributes[i]['id']}*/")
     path_str = redpath.d().replace(',',' ')
     new_id_value = generate_id(attributes[i]['name'])
     generated_ids.append(new_id_value)
