@@ -310,16 +310,61 @@ print("    int path_count;")
 print("    path_info_t paths_info[];")
 print("} image_info_t;")
 print("")
+print("typedef struct stopValue {")
+print("    float offset;")
+print("    uint32_t stop_color;")
+print("} stopValue_t;")
+print("")
+print("typedef struct linearGradient {")
+print("    uint32_t num_stop_points;")
+print("    vg_lite_linear_gradient_parameter_t linear_gradient;")
+print("    stopValue_t *stops;")
+print("} linearGradient_t;")
+print("")
+print("typedef struct gradient_mode {")
+print("    linearGradient_t **liner_gradients;")
+print("    uint32_t *fill_path;")
+print("}gradient_mode_t;")
+print("")
 print("#endif")
 print("")
 print("")
 
 counter = 0
+index = 0
+grad_found = False
 generated_ids = []
+gradient_mapping = {}  # Mapping from fill name to index
 def generate_id(name):
     global counter
     counter += 1
     return f"{name}_{counter}"
+
+def convert_offset(offset):
+    if offset.endswith('%'):
+        return float(offset.strip('%')) / 100.0
+    return float(offset)
+
+def parse_coordinates(line):
+    coordinates = re.findall(r'\d+\.\d+', line)
+    return [float(num) for num in coordinates]
+
+def process_lines(lines):
+    all_coordinates = [parse_coordinates(line) for line in lines]
+    x1, y1 = all_coordinates[0]  # First value
+    x2, y2 = all_coordinates[-2]  # Second last value
+    return x1, y1, x2, y2
+
+def get_min_max_coordinates(parsed_lines):
+    min_x = min(coord[0] for coord in parsed_lines)
+    max_x = max(coord[0] for coord in parsed_lines)
+    min_y = min(coord[1] for coord in parsed_lines)
+    max_y = max(coord[1] for coord in parsed_lines)
+    return min_x, max_x, min_y, max_y
+
+fill_path_output = f"uint32_t {imageName}_fill_path[] = {{\n"
+linear_gradients_output = f"static linearGradient_t {imageName}_linear_gradients[] = {{\n"
+grad_to_path_output = f"static linearGradient_t *{imageName}_grad_to_path[] = {{\n"
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
@@ -330,8 +375,10 @@ for redpath in paths:
     generated_ids.append(new_id_value)
     print("static data_mnemonic_t %s_%s_data[] = {" % (imageName, new_id_value))
     lines = path_convert2vglite(path_str, data_type, 0, 0)
-     
+    parsed_lines = []
+
     for line in lines:
+        parsed_lines.append(parse_coordinates(line))
         print(line)
     print("    {.cmd=VLC_OP_END}")
     print("};")
@@ -345,6 +392,7 @@ for redpath in paths:
     out_cmd = []
     out_arg = []
 
+    fill_data = "" 
     if 'fill' in attributes[i] and attributes[i]['fill'] != 'none':
         cmd_add(out_cmd, attributes[i], 'fill-rule')
         cmd_add(out_cmd, attributes[i], 'fill-opacity')
@@ -356,29 +404,36 @@ for redpath in paths:
             else:
                 m = re.search(r'#([0-9a-fA-F]{6})', attributes[i]['fill'])
         n = re.match(r'rgb\((\d+),(\d+),(\d+)\)', attributes[i]['fill'])
-        if name in colors:
+        if "url" in name:
+            fill_data = (name.replace('url(#', '').replace(')', ''))
+            fill_path_output += " 2,"
+        elif name in colors:
             opa = (colors[name] & 0xFF000000) >> 24 
             r = (colors[name] & 0x00FF0000) >> 16
             g = (colors[name] & 0x0000FF00) >> 8
             b = (colors[name] & 0x000000FF)
             color_data.append("%x" % ((opa << 24) | (b << 16) | (g << 8) | r))
+            fill_path_output += " 1,"
         elif m:
             color = m.group(1)
             r = color[0:2]
             g = color[2:4]
             b = color[4:6]
             color_data.append("ff%s%s%s" % (b,g,r))
+            fill_path_output += " 1,"
         elif n:
             r=int(m.group(1))
             g=int(m.group(2))
             b=int(m.group(3))
             color_data.append("0x%x" % (r * 65536 + g * 256 + b))
+            fill_path_output += " 1,"
         else:
             print("Error: Fill value not supported", sep="---",file=sys.stderr)
 
     if 'fill' in attributes[i]:
         fill_value = attributes[i].get('fill')
         if fill_value == 'none':
+            fill_path_output += " 1,"
             color = 0xff000000  # Black color value
             color = f"{color:08x}"
             color_data.append(color)
@@ -393,22 +448,108 @@ for redpath in paths:
             r = (color & 0xFF0000) >> 16
             g = (color & 0x00FF00) >> 8
             b = (color & 0x0000FF)
+            fill_path_output += " 1,"
         else:
             m = re.match(r'fill:.*rgb\((\d+),\s*(\d+),\s*(\d+)\)', attributes[i]['style'])
             if m:
                 r=int(m.group(1))
                 g=int(m.group(2))
                 b=int(m.group(3))
+                fill_path_output += " 1,"
             else:
                 print("Error: Style value not supported", sep="---",file=sys.stderr)
                 assert(0)
         if opacity:
+            fill_path_output += " 1,"
             opa = int(255*float(opacity.group(1)))
             opa = (opa & 0xFF)
         else:
             opa = 0xFF
         color_data.append("%x" % ((opa << 24) | (b << 16) | (g << 8) | r))
 
+    grad_found = False
+    for grad in attributes:
+        if grad['name'] == 'linearGradient':
+            grad_name = grad['id']
+            if grad_name == fill_data:
+                x1 = y1 = x2 = y2 = 0.0
+                grad_found = True
+                stop_values = []
+                stop_values_output = f"static stopValue_t linearGrad_{new_id_value}[] = {{\n"
+                num_stops = len(grad['stops'])
+                offset = 0.0
+                hex_color = "0x%x" % 0xff000000
+                if 'stops' in grad and grad['stops']:
+                    grad_len = len(grad['stops'])
+                    for stop in grad['stops']:
+                        if 'offset' in stop:
+                            offset = convert_offset(stop['offset'])
+                        if 'stop-color' in stop:
+                            name = stop['stop-color']
+                        if name.startswith('rgb'):
+                            match = re.match(r'rgb\((\d+),(\d+),(\d+)\)', name)
+                            if match:
+                                r, g, b = map(int, match.groups())
+                                hex_color = "0xff%02x%02x%02x" % (r, g, b)
+                        elif name.startswith('#'):
+                            if len(name) == 4:  # Shorthand hex color like #F60
+                                name = '#' + ''.join([c*2 for c in name[1:]])
+                            m = re.search(r'#([0-9a-fA-F]{6})', name)
+                            if m:
+                                hex_color = "0xff" + m.group(1)
+                        else:
+                            if name in colors:
+                                hex_color = "0x%08x" % (colors[name] | 0xff000000)
+
+                        stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
+                else:
+                    grad_len = 1
+                    stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }}"
+
+
+                if num_stops > 0:
+                    stop_values_output = stop_values_output[:-2]
+                stop_values_output += "\n};\n\n"
+                print(stop_values_output)
+                min_x, max_x, min_y, max_y = get_min_max_coordinates(parsed_lines)
+                if 'gradientUnits' in grad:
+                    if (grad['gradientUnits'] == 'userSpaceOnUse'):
+                        x1, y1, x2, y2 = process_lines(lines)
+                        if 'transform' in grad:
+                            x1 = float(grad['x1'])
+                            y1 = float(grad['y1'])
+                            x2 = float(grad['x2'])
+                            y2 = float(grad['y2'])
+                if(('gradientUnits' not in grad) or (grad['gradientUnits'] == 'objectBoundingBox')):
+                    if 'x1' in grad and 'y1' in grad and 'x2' in grad and 'y2' in grad:                        
+                        x1 = min_x + (max_x - min_x) * float(grad['x1'])
+                        y1 = min_y + (max_y - min_y) * float(grad['y1'])
+                        x2 = min_x + (max_x - min_x) * float(grad['x2'])
+                        y2 = min_y + (max_y - min_y) * float(grad['y2'])
+                    else:
+                        x1 = min_x
+                        y1 = min_y
+                        x2 = max_x
+                        y2 = min_y
+                    
+                linear_gradients_output += f"    {{\n"
+                linear_gradients_output += f"        /*grad id={grad_name}*/\n"
+                linear_gradients_output += f"        .num_stop_points = {grad_len},\n"
+                linear_gradients_output += f"        .linear_gradient = {{{x1}f, {y1}f, {x2}f, {y2}f}},\n"
+                linear_gradients_output += f"        .stops = linearGrad_{new_id_value}\n"
+                linear_gradients_output += f"    }},\n"
+                gradient_mapping[fill_data] = index  # Map the gradient name to its index
+                index += 1    
+
+    if not grad_found:
+        linear_gradients_output += f"    {{\n"
+        linear_gradients_output += f"        .num_stop_points = 0\n"
+        linear_gradients_output += f"    }},\n"
+    
+    if fill_data in gradient_mapping:
+        grad_to_path_output += f"    &{imageName}_linear_gradients[{gradient_mapping[fill_data]}],\n"
+    else:
+        grad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
 
     if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
         out_cmd.extend('S')
@@ -437,7 +578,33 @@ for redpath in paths:
     out_cmd.extend(p_cmd)
     out_cmd.extend('E')
 
+    if i == len(paths) - 1:
+        fill_path_output = fill_path_output.rstrip(',') 
+
     i += 1
+
+if grad_to_path_output.endswith(",\n"):
+    grad_to_path_output = grad_to_path_output[:-2]
+
+fill_path_output += "\n};\n"
+grad_to_path_output += "\n};\n\n"
+
+    
+if index > 0:
+    linear_gradients_output = linear_gradients_output[:-2]
+       
+linear_gradients_output += "\n};\n\n"
+
+
+print(linear_gradients_output)
+print(grad_to_path_output)
+print(fill_path_output)
+
+print ("static gradient_mode_t %s_gradient_info = {" % imageName)
+print(f"    .liner_gradients = {imageName}_grad_to_path,")
+print(f"    .fill_path = {imageName}_fill_path")
+print("};")
+print("")
 
 print("static image_info_t %s = {" % imageName)
 print("    .image_name =\"%s\"," % imageName)
