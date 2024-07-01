@@ -348,7 +348,12 @@ for redpath in paths:
         cmd_add(out_cmd, attributes[i], 'fill-rule')
         cmd_add(out_cmd, attributes[i], 'fill-opacity')
         name = attributes[i]['fill']
-        m = re.search(r'#([0-9a-fA-F]{6})', attributes[i]['fill'])
+        if name.startswith('#'):
+            if len(name) == 4:  # Shorthand hex color like #F60
+                name = '#' + ''.join([c*2 for c in name[1:]])
+                m = re.search(r'#([0-9a-fA-F]{6})', name)
+            else:
+                m = re.search(r'#([0-9a-fA-F]{6})', attributes[i]['fill'])
         n = re.match(r'rgb\((\d+),(\d+),(\d+)\)', attributes[i]['fill'])
         if name in colors:
             opa = (colors[name] & 0xFF000000) >> 24 
