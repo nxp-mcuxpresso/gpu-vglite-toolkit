@@ -322,7 +322,7 @@ print("    stopValue_t *stops;")
 print("} linearGradient_t;")
 print("")
 print("typedef struct gradient_mode {")
-print("    linearGradient_t **liner_gradients;")
+print("    linearGradient_t **linearGrads;")
 print("    uint32_t *fill_path;")
 print("}gradient_mode_t;")
 print("")
@@ -362,6 +362,25 @@ def get_min_max_coordinates(parsed_lines):
     max_y = max(coord[1] for coord in parsed_lines)
     return min_x, max_x, min_y, max_y
 
+def parse_color(color_str):
+    if color_str.startswith('#'):
+        if len(color_str) == 4:  # Shorthand hex color like #F60
+            color_str = '#' + ''.join([c*2 for c in color_str[1:]])
+        m = re.search(r'#([0-9a-fA-F]{6})', color_str)
+        if m:
+            color = m.group(1)
+            r = int(color[0:2], 16)
+            g = int(color[2:4], 16)
+            b = int(color[4:6], 16)
+            return (255 << 24) | (r << 16) | (g << 8) | b
+    elif color_str.startswith('rgb'):
+        m = re.match(r'rgb\((\d+),(\d+),(\d+)\)', color_str)
+        if m:
+            r, g, b = map(int, m.groups())
+            return (255 << 24) | (r << 16) | (g << 8) | b
+    elif color_str in colors:
+        return colors[color_str] | 0xFF000000
+
 fill_path_output = f"uint32_t {imageName}_fill_path[] = {{\n"
 linear_gradients_output = f"static linearGradient_t {imageName}_linear_gradients[] = {{\n"
 grad_to_path_output = f"static linearGradient_t *{imageName}_grad_to_path[] = {{\n"
@@ -397,35 +416,19 @@ for redpath in paths:
         cmd_add(out_cmd, attributes[i], 'fill-rule')
         cmd_add(out_cmd, attributes[i], 'fill-opacity')
         name = attributes[i]['fill']
-        if name.startswith('#'):
-            if len(name) == 4:  # Shorthand hex color like #F60
-                name = '#' + ''.join([c*2 for c in name[1:]])
-                m = re.search(r'#([0-9a-fA-F]{6})', name)
-            else:
-                m = re.search(r'#([0-9a-fA-F]{6})', attributes[i]['fill'])
-        n = re.match(r'rgb\((\d+),(\d+),(\d+)\)', attributes[i]['fill'])
+
+        fill_color = parse_color(name)
         if "url" in name:
             fill_data = (name.replace('url(#', '').replace(')', ''))
+            color_data.append("0")
             fill_path_output += " 2,"
-        elif name in colors:
-            opa = (colors[name] & 0xFF000000) >> 24 
-            r = (colors[name] & 0x00FF0000) >> 16
-            g = (colors[name] & 0x0000FF00) >> 8
-            b = (colors[name] & 0x000000FF)
-            color_data.append("%x" % ((opa << 24) | (b << 16) | (g << 8) | r))
-            fill_path_output += " 1,"
-        elif m:
-            color = m.group(1)
-            r = color[0:2]
-            g = color[2:4]
-            b = color[4:6]
-            color_data.append("ff%s%s%s" % (b,g,r))
-            fill_path_output += " 1,"
-        elif n:
-            r=int(m.group(1))
-            g=int(m.group(2))
-            b=int(m.group(3))
-            color_data.append("0x%x" % (r * 65536 + g * 256 + b))
+        elif fill_color:
+            opa = (fill_color & 0xFF000000) >> 24
+            r = (fill_color & 0x00FF0000) >> 16
+            g = (fill_color & 0x0000FF00) >> 8
+            b = (fill_color & 0x000000FF)
+            bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
+            color_data.append("%x" % bgr_color)
             fill_path_output += " 1,"
         else:
             print("Error: Fill value not supported", sep="---",file=sys.stderr)
@@ -486,20 +489,11 @@ for redpath in paths:
                             offset = convert_offset(stop['offset'])
                         if 'stop-color' in stop:
                             name = stop['stop-color']
-                        if name.startswith('rgb'):
-                            match = re.match(r'rgb\((\d+),(\d+),(\d+)\)', name)
-                            if match:
-                                r, g, b = map(int, match.groups())
-                                hex_color = "0xff%02x%02x%02x" % (r, g, b)
-                        elif name.startswith('#'):
-                            if len(name) == 4:  # Shorthand hex color like #F60
-                                name = '#' + ''.join([c*2 for c in name[1:]])
-                            m = re.search(r'#([0-9a-fA-F]{6})', name)
-                            if m:
-                                hex_color = "0xff" + m.group(1)
-                        else:
-                            if name in colors:
-                                hex_color = "0x%08x" % (colors[name] | 0xff000000)
+                            stop_color = parse_color(name)
+                            if stop_color :
+                                hex_color = "0x%x" % stop_color
+                            else:
+                                print("Error: stop color value not supported", sep="---",file=sys.stderr)
 
                         stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
                 else:
@@ -550,6 +544,7 @@ for redpath in paths:
         grad_to_path_output += f"    &{imageName}_linear_gradients[{gradient_mapping[fill_data]}],\n"
     else:
         grad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
+        index +=1
 
     if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
         out_cmd.extend('S')
@@ -601,7 +596,7 @@ print(grad_to_path_output)
 print(fill_path_output)
 
 print ("static gradient_mode_t %s_gradient_info = {" % imageName)
-print(f"    .liner_gradients = {imageName}_grad_to_path,")
+print(f"    .linearGrads = {imageName}_grad_to_path,")
 print(f"    .fill_path = {imageName}_fill_path")
 print("};")
 print("")
