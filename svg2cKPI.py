@@ -7,7 +7,7 @@ from svgpathtools import svg2paths2
 import sys
 import json
 import re
-
+import numpy as np
 from pathlib import Path
 
 input_file=sys.argv[1]
@@ -325,8 +325,15 @@ print("    vg_lite_linear_gradient_parameter_t linear_gradient;")
 print("    stopValue_t *stops;")
 print("} linearGradient_t;")
 print("")
+print("typedef struct radialGradient {")
+print("    uint32_t num_stop_points;")
+print("    vg_lite_radial_gradient_parameter_t radial_gradient;")
+print("    stopValue_t *stops;")
+print("} radialGradient_t;")
+print("")
 print("typedef struct gradient_mode {")
 print("    linearGradient_t **linearGrads;")
+print("    radialGradient_t **radialGrads;")
 print("    uint32_t *fill_path;")
 print("}gradient_mode_t;")
 print("")
@@ -387,7 +394,9 @@ def parse_color(color_str):
 
 fill_path_output = f"uint32_t {imageName}_fill_path[] = {{\n"
 linear_gradients_output = f"static linearGradient_t {imageName}_linear_gradients[] = {{\n"
-grad_to_path_output = f"static linearGradient_t *{imageName}_grad_to_path[] = {{\n"
+lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
+radial_gradients_output = f"static radialGradient_t {imageName}_radial_gradients[] = {{\n"
+radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[] = {{\n"
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
@@ -425,7 +434,6 @@ for redpath in paths:
         if "url" in name:
             fill_data = (name.replace('url(#', '').replace(')', ''))
             color_data.append("0")
-            fill_path_output += " 2,"
         elif fill_color:
             opa = (fill_color & 0xFF000000) >> 24
             r = (fill_color & 0x00FF0000) >> 16
@@ -537,18 +545,146 @@ for redpath in paths:
                 linear_gradients_output += f"        .stops = linearGrad_{new_id_value}\n"
                 linear_gradients_output += f"    }},\n"
                 gradient_mapping[fill_data] = index  # Map the gradient name to its index
-                index += 1    
+                index += 1
+
+                if fill_data in gradient_mapping:
+                    lingrad_to_path_output += f"    &{imageName}_linear_gradients[{gradient_mapping[fill_data]}],\n"
+                    radgrad_to_path_output += f"    &{imageName}_radial_gradients[{gradient_mapping[fill_data]}],\n"
+                else:
+                    lingrad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
+                    radgrad_to_path_output += f"    &{imageName}_radial_gradients[{index}],\n"
+
+                radial_gradients_output += f"    {{\n"
+                radial_gradients_output += f"        .num_stop_points = 0\n"
+                radial_gradients_output += f"    }},\n"
+                fill_path_output += " 2,"
+
+        elif grad['name'] == 'radialGradient':
+            grad_name = grad['id']
+            if grad_name == fill_data:
+                cx = cy = r = fx = fy = 0.0
+                grad_found = True
+                stop_values = []
+                stop_values_output = f"static stopValue_t radialGrad_{new_id_value}[] = {{\n"
+                num_stops = len(grad['stops'])
+                offset = 0.0
+                hex_color = "0x%x" % 0xff000000
+                if 'stops' in grad and grad['stops']:
+                    grad_len = len(grad['stops'])
+                    for stop in grad['stops']:
+                        if 'offset' in stop:
+                            offset = convert_offset(stop['offset'])
+                        if 'stop-color' in stop:
+                            name = stop['stop-color']
+                            stop_color = parse_color(name)
+                            if stop_color :
+                                hex_color = "0x%x" % stop_color
+                            else:
+                                print("Error: stop color value not supported", sep="---",file=sys.stderr)
+
+                        stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
+                else:
+                    grad_len = 1
+                    stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }}"
+
+
+                if num_stops > 0:
+                    stop_values_output = stop_values_output[:-2]
+                stop_values_output += "\n};\n\n"
+                print(stop_values_output)
+                min_x, max_x, min_y, max_y = get_min_max_coordinates(parsed_lines)
+                if 'gradientUnits' in grad:
+                    if (grad['gradientUnits'] == 'userSpaceOnUse'):
+                        #All gradient parameters are available along with transform
+                        if all(key in grad for key in ('cx', 'cy', 'r', 'fx', 'fy')) and 'transform' in attributes[i]:
+                            m1 = attributes[i]['path_transform']
+                            m2 = [float(grad['cx']), float(grad['cy']), 1]
+                            coordinatesTrans = np.dot(m1,m2)
+                            cx = coordinatesTrans[0]
+                            cy = coordinatesTrans[1]
+                            r = float(grad['r'])
+                            m2 = [float(grad['fx']), float(grad['fy']), 1]
+                            coordinatesTrans = np.dot(m1,m2)
+                            fx = coordinatesTrans[0]
+                            fy = coordinatesTrans[1]
+                        #cx, cy and r gradient parameters are available but fx and fy is missing
+                        elif all(key in grad for key in ('cx', 'cy', 'r'))  and ('fx' and 'fy') not in grad and 'transform' in attributes[i]:
+                            m1 = attributes[i]['path_transform']
+                            m2 = [float(grad['cx']), float(grad['cy']), 1]
+                            coordinatesTrans = np.dot(m1,m2)
+                            cx = coordinatesTrans[0]
+                            cy = coordinatesTrans[1]
+                            r = float(grad['r'])
+                            fx = coordinatesTrans[0]
+                            fy = coordinatesTrans[1]
+                        #cx, cy and r gradient parameters are available but fx, fy and transform function is missing
+                        elif all(key in grad for key in ('cx', 'cy', 'r'))  and ('fx' and 'fy') not in grad and 'transform' not in attributes[i]:
+                            cx = float(grad['cx'])
+                            cy = float(grad['cy'])
+                            r = float(grad['r'])
+                            fx = float(grad['cx'])
+                            fy = float(grad['cy'])
+                        #All gradient parameters are available but transform function is missing
+                        else:
+                            cx = float(grad['cx'])
+                            cy = float(grad['cy'])
+                            r = float(grad['r'])
+                            fx = float(grad['fx'])
+                            fy = float(grad['fy'])
+                if(('gradientUnits' not in grad) or (grad['gradientUnits'] == 'objectBoundingBox')):
+                    #All gradient parameters are available
+                    if all(key in grad for key in ('cx', 'cy', 'r', 'fx', 'fy')):
+                        cx = min_x + (max_x - min_x) * convert_offset(grad['cx'])
+                        cy = min_y + (max_y - min_y) * convert_offset(grad['cy'])
+                        cx = min(min_x + (max_x - min_x) * convert_offset(grad['r']), min_y + (max_y - min_y) * convert_offset(grad['r']))
+                        fx = min_x + (max_x - min_x) * convert_offset(grad['fx'])
+                        fy = min_y + (max_y - min_y) * convert_offset(grad['fy'])
+                    #cx, cy and r gradient parameters are available but fx and fy is missing
+                    if all(key in grad for key in ('cx', 'cy', 'r')):
+                        cx = min_x + (max_x - min_x) * convert_offset(grad['cx'])
+                        cy = min_y + (max_y - min_y) * convert_offset(grad['cy'])
+                        r = min(min_x + (max_x - min_x) * convert_offset(grad['r']), min_y + (max_y - min_y) * convert_offset(grad['r']))
+                        fx = cx
+                        fy = cy
+                    #cx, cy, r, fx and fy gradient parameters are missing
+                    else:
+                        cx = min_x + (max_x - min_x) * 0.5
+                        cy = min_y + (max_y - min_y) * 0.5
+                        r  = min(cx,cy)
+                        fx = min_x + (max_x - min_x) * 0.5
+                        fy = min_y + (max_y - min_y) * 0.5
+
+                radial_gradients_output += f"    {{\n"
+                radial_gradients_output += f"        /*grad id={grad_name}*/\n"
+                radial_gradients_output += f"        .num_stop_points = {grad_len},\n"
+                radial_gradients_output += f"        .radial_gradient = {{{cx}f, {cy}f, {r}f, {fx}f, {fy}f}},\n"
+                radial_gradients_output += f"        .stops = radialGrad_{new_id_value}\n"
+                radial_gradients_output += f"    }},\n"
+                gradient_mapping[fill_data] = index  # Map the gradient name to its index
+                index += 1
+
+                if fill_data in gradient_mapping:
+                    lingrad_to_path_output += f"    &{imageName}_linear_gradients[{gradient_mapping[fill_data]}],\n"
+                    radgrad_to_path_output += f"    &{imageName}_radial_gradients[{gradient_mapping[fill_data]}],\n"
+                else:
+                    lingrad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
+                    radgrad_to_path_output += f"    &{imageName}_radial_gradients[{index}],\n"
+
+                linear_gradients_output += f"    {{\n"
+                linear_gradients_output += f"        .num_stop_points = 0\n"
+                linear_gradients_output += f"    }},\n"
+                fill_path_output += " 3,"
 
     if not grad_found:
         linear_gradients_output += f"    {{\n"
         linear_gradients_output += f"        .num_stop_points = 0\n"
         linear_gradients_output += f"    }},\n"
-    
-    if fill_data in gradient_mapping:
-        grad_to_path_output += f"    &{imageName}_linear_gradients[{gradient_mapping[fill_data]}],\n"
-    else:
-        grad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
-        index +=1
+        radial_gradients_output += f"    {{\n"
+        radial_gradients_output += f"        .num_stop_points = 0\n"
+        radial_gradients_output += f"    }},\n"
+        lingrad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
+        radgrad_to_path_output += f"    &{imageName}_radial_gradients[{index}],\n"
+        index += 1
 
     if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
         out_cmd.extend('S')
@@ -582,25 +718,34 @@ for redpath in paths:
 
     i += 1
 
-if grad_to_path_output.endswith(",\n"):
-    grad_to_path_output = grad_to_path_output[:-2]
+if lingrad_to_path_output.endswith(",\n"):
+    lingrad_to_path_output = lingrad_to_path_output[:-2]
+
+if radgrad_to_path_output.endswith(",\n"):
+    radgrad_to_path_output = radgrad_to_path_output[:-2]
 
 fill_path_output += "\n};\n"
-grad_to_path_output += "\n};\n\n"
+lingrad_to_path_output += "\n};\n\n"
+radgrad_to_path_output += "\n};\n\n"
 
     
 if index > 0:
     linear_gradients_output = linear_gradients_output[:-2]
+    radial_gradients_output = radial_gradients_output[:-2]
        
 linear_gradients_output += "\n};\n\n"
+radial_gradients_output += "\n};\n\n"
 
 
 print(linear_gradients_output)
-print(grad_to_path_output)
+print(radial_gradients_output)
+print(lingrad_to_path_output)
+print(radgrad_to_path_output)
 print(fill_path_output)
 
 print ("static gradient_mode_t %s_gradient_info = {" % imageName)
-print(f"    .linearGrads = {imageName}_grad_to_path,")
+print(f"    .linearGrads = {imageName}_lingrad_to_path,")
+print(f"    .radialGrads = {imageName}_radgrad_to_path,")
 print(f"    .fill_path = {imageName}_fill_path")
 print("};")
 print("")
