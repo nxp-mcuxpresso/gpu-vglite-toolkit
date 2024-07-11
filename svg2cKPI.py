@@ -13,6 +13,10 @@ from pathlib import Path
 input_file=sys.argv[1]
 paths, attributes, svg_attributes = svg2paths2(input_file, return_svg_attributes=True)
 
+if svg_attributes.get('version') != "1.2" or svg_attributes.get('baseProfile') != "tiny":
+    print("Error: SVG version must be 1.2 and baseProfile must be tiny.", sep="---",file=sys.stderr)
+    sys.exit(1)
+
 # Let's print out the first path object and the color it was in the SVG
 # We'll see it is composed of two CubicBezier objects and, in the SVG file it 
 # came from, it was red
