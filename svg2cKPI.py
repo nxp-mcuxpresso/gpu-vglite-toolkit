@@ -265,7 +265,7 @@ TAGS = {
 g_cmd = []
 g_arg = []
 i = 0
-
+gradPresent = False
 color_data = []
 
 data_type = "int32_t"
@@ -393,9 +393,7 @@ def parse_color(color_str):
         return colors[color_str] | 0xFF000000
 
 fill_path_output = f"uint32_t {imageName}_fill_path[] = {{\n"
-linear_gradients_output = f"static linearGradient_t {imageName}_linear_gradients[] = {{\n"
 lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
-radial_gradients_output = f"static radialGradient_t {imageName}_radial_gradients[] = {{\n"
 radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[] = {{\n"
 
 for redpath in paths:
@@ -537,27 +535,27 @@ for redpath in paths:
                         y1 = min_y
                         x2 = max_x
                         y2 = min_y
-                    
+                linear_gradients_output = f"static linearGradient_t {imageName}_linear_gradients_{index}[] = {{\n"
                 linear_gradients_output += f"    {{\n"
                 linear_gradients_output += f"        /*grad id={grad_name}*/\n"
                 linear_gradients_output += f"        .num_stop_points = {grad_len},\n"
                 linear_gradients_output += f"        .linear_gradient = {{{x1}f, {y1}f, {x2}f, {y2}f}},\n"
                 linear_gradients_output += f"        .stops = linearGrad_{new_id_value}\n"
                 linear_gradients_output += f"    }},\n"
+                linear_gradients_output += "\n};\n\n"
+                print(linear_gradients_output)
                 gradient_mapping[fill_data] = index  # Map the gradient name to its index
                 index += 1
 
                 if fill_data in gradient_mapping:
-                    lingrad_to_path_output += f"    &{imageName}_linear_gradients[{gradient_mapping[fill_data]}],\n"
-                    radgrad_to_path_output += f"    &{imageName}_radial_gradients[{gradient_mapping[fill_data]}],\n"
+                    lingrad_to_path_output += f"    &{imageName}_linear_gradients_{gradient_mapping[fill_data]},\n"
+                    radgrad_to_path_output += f"    NULL,\n"
                 else:
-                    lingrad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
-                    radgrad_to_path_output += f"    &{imageName}_radial_gradients[{index}],\n"
+                    lingrad_to_path_output += f"    &{imageName}_linear_gradients_{index},\n"
+                    radgrad_to_path_output += f"    NULL,\n"
 
-                radial_gradients_output += f"    {{\n"
-                radial_gradients_output += f"        .num_stop_points = 0\n"
-                radial_gradients_output += f"    }},\n"
                 fill_path_output += " 2,"
+                gradPresent = True
 
         elif grad['name'] == 'radialGradient':
             grad_name = grad['id']
@@ -653,37 +651,31 @@ for redpath in paths:
                         r  = min(cx,cy)
                         fx = min_x + (max_x - min_x) * 0.5
                         fy = min_y + (max_y - min_y) * 0.5
-
+                radial_gradients_output = f"static radialGradient_t {imageName}_radial_gradients_{index}[] = {{\n"
                 radial_gradients_output += f"    {{\n"
                 radial_gradients_output += f"        /*grad id={grad_name}*/\n"
                 radial_gradients_output += f"        .num_stop_points = {grad_len},\n"
                 radial_gradients_output += f"        .radial_gradient = {{{cx}f, {cy}f, {r}f, {fx}f, {fy}f}},\n"
                 radial_gradients_output += f"        .stops = radialGrad_{new_id_value}\n"
                 radial_gradients_output += f"    }},\n"
+                radial_gradients_output += "\n};\n\n"
+                print(radial_gradients_output)
                 gradient_mapping[fill_data] = index  # Map the gradient name to its index
                 index += 1
 
                 if fill_data in gradient_mapping:
-                    lingrad_to_path_output += f"    &{imageName}_linear_gradients[{gradient_mapping[fill_data]}],\n"
-                    radgrad_to_path_output += f"    &{imageName}_radial_gradients[{gradient_mapping[fill_data]}],\n"
+                    lingrad_to_path_output += f"    NULL,\n"
+                    radgrad_to_path_output += f"    &{imageName}_radial_gradients_{gradient_mapping[fill_data]},\n"
                 else:
-                    lingrad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
-                    radgrad_to_path_output += f"    &{imageName}_radial_gradients[{index}],\n"
+                    lingrad_to_path_output += f"    NULL,\n"
+                    radgrad_to_path_output += f"    &{imageName}_radial_gradients_{index},\n"
 
-                linear_gradients_output += f"    {{\n"
-                linear_gradients_output += f"        .num_stop_points = 0\n"
-                linear_gradients_output += f"    }},\n"
                 fill_path_output += " 3,"
+                gradPresent = True
 
     if not grad_found:
-        linear_gradients_output += f"    {{\n"
-        linear_gradients_output += f"        .num_stop_points = 0\n"
-        linear_gradients_output += f"    }},\n"
-        radial_gradients_output += f"    {{\n"
-        radial_gradients_output += f"        .num_stop_points = 0\n"
-        radial_gradients_output += f"    }},\n"
-        lingrad_to_path_output += f"    &{imageName}_linear_gradients[{index}],\n"
-        radgrad_to_path_output += f"    &{imageName}_radial_gradients[{index}],\n"
+        lingrad_to_path_output += f"    NULL,\n"
+        radgrad_to_path_output += f"    NULL,\n"
         index += 1
 
     if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
@@ -728,24 +720,22 @@ fill_path_output += "\n};\n"
 lingrad_to_path_output += "\n};\n\n"
 radgrad_to_path_output += "\n};\n\n"
 
-    
-if index > 0:
-    linear_gradients_output = linear_gradients_output[:-2]
-    radial_gradients_output = radial_gradients_output[:-2]
-       
-linear_gradients_output += "\n};\n\n"
-radial_gradients_output += "\n};\n\n"
 
+if gradPresent == True:
+    print(lingrad_to_path_output)
+    print(radgrad_to_path_output)
 
-print(linear_gradients_output)
-print(radial_gradients_output)
-print(lingrad_to_path_output)
-print(radgrad_to_path_output)
 print(fill_path_output)
 
+
 print ("static gradient_mode_t %s_gradient_info = {" % imageName)
-print(f"    .linearGrads = {imageName}_lingrad_to_path,")
-print(f"    .radialGrads = {imageName}_radgrad_to_path,")
+
+if gradPresent == True:
+    print(f"    .linearGrads = {imageName}_lingrad_to_path,")
+    print(f"    .radialGrads = {imageName}_radgrad_to_path,")
+else:
+    print(f"    .linearGrads = NULL,")
+    print(f"    .radialGrads = NULL,")
 print(f"    .fill_path = {imageName}_fill_path")
 print("};")
 print("")
