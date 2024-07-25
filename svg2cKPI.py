@@ -342,14 +342,37 @@ print("    vg_lite_radial_gradient_parameter_t radial_gradient;")
 print("    stopValue_t *stops;")
 print("} radialGradient_t;")
 print("")
+print("typedef struct hybridPath {")
+print("    uint8_t fillType;")
+print("    uint8_t pathType;")
+print("} hybridPath_t;")
+print("")
 print("typedef struct gradient_mode {")
 print("    linearGradient_t **linearGrads;")
 print("    radialGradient_t **radialGrads;")
-print("    uint32_t *fill_path;")
+print("    hybridPath_t *hybridPath;")
 print("}gradient_mode_t;")
 print("")
 print("#endif")
 print("")
+print("")
+
+print("#if VGLITE_HEADER_VERSION <= 6");
+print("#define TEST_DATA_MAX 10");
+print("#define APP_VG_LITE_DRAW_ZERO               (VG_LITE_DRAW_STROKE_PATH)");
+print("#define APP_VG_LITE_DRAW_STROKE_PATH        (VG_LITE_DRAW_STROKE_PATH)");
+print("#define APP_VG_LITE_DRAW_FILL_PATH          (VG_LITE_DRAW_FILL_PATH)");
+print("#define APP_VG_LITE_DRAW_FILL_STROKE_PATH   (VG_LITE_DRAW_FILL_STROKE_PATH)");
+print("#define APP_PATH_FILL_TYPE  vg_lite_draw_path_type_t")
+
+print("#else");
+print("#define TEST_DATA_MAX 12");
+print("#define APP_VG_LITE_DRAW_ZERO               (VG_LITE_DRAW_ZERO)");
+print("#define APP_VG_LITE_DRAW_STROKE_PATH        (VG_LITE_DRAW_STROKE_PATH)");
+print("#define APP_VG_LITE_DRAW_FILL_PATH          (VG_LITE_DRAW_FILL_PATH)");
+print("#define APP_VG_LITE_DRAW_FILL_STROKE_PATH   (VG_LITE_DRAW_FILL_STROKE_PATH)");
+print("#define APP_PATH_FILL_TYPE  vg_lite_path_type_t")
+print("#endif");
 print("")
 
 counter = 0
@@ -403,10 +426,11 @@ def parse_color(color_str):
     elif color_str in colors:
         return colors[color_str] | 0xFF000000
 
-fill_path_output = f"uint32_t {imageName}_fill_path[] = {{\n"
+hybrid_path_output = f"hybridPath_t {imageName}_hybrid_path[] = {{\n"
 strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
 lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
 radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[] = {{\n"
+fill_path_grad = []
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
@@ -634,7 +658,7 @@ for redpath in paths:
                     lingrad_to_path_output += f"    &{imageName}_linear_gradients_{index},\n"
                     radgrad_to_path_output += f"    NULL,\n"
 
-                fill_path_output += " 2,"
+                fill_path_grad.extend('2')
                 gradPresent = True
 
         elif grad['name'] == 'radialGradient':
@@ -750,13 +774,13 @@ for redpath in paths:
                     lingrad_to_path_output += f"    NULL,\n"
                     radgrad_to_path_output += f"    &{imageName}_radial_gradients_{index},\n"
 
-                fill_path_output += " 3,"
+                fill_path_grad.extend("3")
                 gradPresent = True
 
     if not grad_found:
         lingrad_to_path_output += f"    NULL,\n"
         radgrad_to_path_output += f"    NULL,\n"
-        fill_path_output += " 1,"
+        fill_path_grad.extend("1")
         index += 1
 
     # add the Path
@@ -765,10 +789,49 @@ for redpath in paths:
     out_cmd.extend(p_cmd)
     out_cmd.extend('E')
 
-    if i == len(paths) - 1:
-        fill_path_output = fill_path_output.rstrip(',') 
-
     i += 1
+for i in range(len(paths)):
+    # Fill = none, Stroke = none
+    if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
+        hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_ZERO }},\n"
+        hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+    # No fill or Fill = none, Stroke in attribute
+    elif (('fill' in attributes[i] and attributes[i]['fill'] == 'none') or ('fill' not in attributes[i])) and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
+        # Stroke with gradient feature
+        if ('url' in attributes[i]['stroke']):
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+        # Normal stroke
+        else:
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+    # No stroke or stroke = none, Fill in attribute
+    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and (('stroke' in attributes[i] and attributes[i]['stroke'] == 'none') or ('stroke' not in attributes[i])):
+        # Fill with gradient feature
+        if ('url' in attributes[i]['fill']):
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+        # Normal fill
+        else:
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+    # Both stroke and fill in attribute
+    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
+        # Fill with gradient feature
+        if ('url' in attributes[i]['fill']):
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = 1, .pathType = APP_VG_LITE_DRAW_STROKE_PATH }},\n"
+        # Stroke with gradient feature
+        elif ('url' in attributes[i]['stroke']):
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = 1, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
+        # Normal fill and stroke
+        else:
+            hybrid_path_output += f"    {{ .fillType = 1, .pathType = APP_VG_LITE_DRAW_FILL_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+    else:
+        hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
+        hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
 
 if lingrad_to_path_output.endswith(",\n"):
     lingrad_to_path_output = lingrad_to_path_output[:-2]
@@ -776,18 +839,17 @@ if lingrad_to_path_output.endswith(",\n"):
 if radgrad_to_path_output.endswith(",\n"):
     radgrad_to_path_output = radgrad_to_path_output[:-2]
 
-fill_path_output += "\n};\n"
+hybrid_path_output += "\n};\n"
 lingrad_to_path_output += "\n};\n\n"
 radgrad_to_path_output += "\n};\n\n"
 strokeFeature += "\n};\n\n"
 
 print(strokeFeature)
+print(hybrid_path_output)
 
 if gradPresent == True:
     print(lingrad_to_path_output)
     print(radgrad_to_path_output)
-
-print(fill_path_output)
 
 print ("static gradient_mode_t %s_gradient_info = {" % imageName)
 
@@ -797,7 +859,7 @@ if gradPresent == True:
 else:
     print(f"    .linearGrads = NULL,")
     print(f"    .radialGrads = NULL,")
-print(f"    .fill_path = {imageName}_fill_path")
+print(f"    .hybridPath = {imageName}_hybrid_path")
 print("};")
 print("")
 
@@ -836,46 +898,6 @@ print(line)
 
 print("};")
 print("")
-
-print("#if VGLITE_HEADER_VERSION <= 6");
-print("#define TEST_DATA_MAX 10");
-print("#define APP_VG_LITE_DRAW_ZERO               (VG_LITE_DRAW_STROKE_PATH)");
-print("#define APP_VG_LITE_DRAW_STROKE_PATH        (VG_LITE_DRAW_STROKE_PATH)");
-print("#define APP_VG_LITE_DRAW_FILL_PATH          (VG_LITE_DRAW_FILL_PATH)");
-print("#define APP_VG_LITE_DRAW_FILL_STROKE_PATH   (VG_LITE_DRAW_FILL_STROKE_PATH)");
-print("#define APP_PATH_FILL_TYPE  vg_lite_draw_path_type_t")
-
-print("#else");
-print("#define TEST_DATA_MAX 12");
-print("#define APP_VG_LITE_DRAW_ZERO               (VG_LITE_DRAW_ZERO)");
-print("#define APP_VG_LITE_DRAW_STROKE_PATH        (VG_LITE_DRAW_STROKE_PATH)");
-print("#define APP_VG_LITE_DRAW_FILL_PATH          (VG_LITE_DRAW_FILL_PATH)");
-print("#define APP_VG_LITE_DRAW_FILL_STROKE_PATH   (VG_LITE_DRAW_FILL_STROKE_PATH)");
-print("#define APP_PATH_FILL_TYPE  vg_lite_path_type_t")
-print("#endif");
-print("")
-
-lines = []
-for i in range(len(paths)):
-    if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
-        lines.append("APP_VG_LITE_DRAW_ZERO")
-    elif (('fill' in attributes[i] and attributes[i]['fill'] == 'none') or 'fill' not in attributes[i]) and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
-        lines.append("APP_VG_LITE_DRAW_STROKE_PATH")
-    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and (('stroke' in attributes[i] and attributes[i]['stroke'] == 'none') or 'stroke' not in attributes[i]):
-        lines.append("APP_VG_LITE_DRAW_FILL_PATH")
-    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
-        lines.append("APP_VG_LITE_DRAW_FILL_STROKE_PATH")
-    else:
-        lines.append("APP_VG_LITE_DRAW_FILL_PATH")
-
-print("APP_PATH_FILL_TYPE %s_path_type[] = {" % imageName);
-for i in range(len(lines)):
-    if i == len(lines) - 1:
-        print(lines[i])  # Last line without a trailing comma
-    else:
-        print(lines[i] + ",")
-print("};")
-
 
 #print(g_cmd)
 #print(g_arg)
