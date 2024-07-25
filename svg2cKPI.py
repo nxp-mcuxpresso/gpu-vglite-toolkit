@@ -305,12 +305,23 @@ print("    uint32_t  path_length;")
 print("    %s  *path_data;" % data_type)
 print("} path_info_t;")
 print("")
-
+print("typedef struct stroke_info {")
+print("    uint8_t linecap;")
+print("    uint8_t linejoin;")
+print("    float strokeWidth;")
+print("    float miterlimit;")
+print("    float *dashPattern;")
+print("    uint32_t dashPatternCnt;")
+print("    float dashPhase;")
+print("    uint32_t strokeColor;")
+print("} stroke_info_t;")
+print("")
 print("typedef struct image_info {")
 print("    char *image_name;")
 print("    int  image_size[2];")
 print("    vg_lite_format_t data_format;")
 print("    int path_count;")
+print("    stroke_info_t *stroke_info;")
 print("    path_info_t paths_info[];")
 print("} image_info_t;")
 print("")
@@ -393,6 +404,7 @@ def parse_color(color_str):
         return colors[color_str] | 0xFF000000
 
 fill_path_output = f"uint32_t {imageName}_fill_path[] = {{\n"
+strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
 lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
 radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[] = {{\n"
 
@@ -439,17 +451,88 @@ for redpath in paths:
             b = (fill_color & 0x000000FF)
             bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
             color_data.append("%x" % bgr_color)
-            fill_path_output += " 1,"
         else:
             print("Error: Fill value not supported", sep="---",file=sys.stderr)
 
     if 'fill' in attributes[i]:
         fill_value = attributes[i].get('fill')
         if fill_value == 'none':
-            fill_path_output += " 1,"
             color = 0xff000000  # Black color value
             color = f"{color:08x}"
             color_data.append(color)
+
+    if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
+        out_cmd.extend('S')
+        strokeFeature += f"    {{\n"
+        if 'stroke-linecap' in attributes[i]:
+            if {attributes[i]['stroke-linecap']} == {'butt'}:
+                strokeFeature += f"        .linecap = VG_LITE_CAP_BUTT,\n"
+            elif {attributes[i]['stroke-linecap']} == {'round'}:
+                strokeFeature += f"        .linecap = VG_LITE_CAP_ROUND,\n"
+            elif {attributes[i]['stroke-linecap']} == {'square'}:
+                strokeFeature += f"        .linecap = VG_LITE_CAP_SQUARE,\n"
+        else:
+            strokeFeature += f"        .linecap = 0,\n"
+        if 'stroke-linejoin' in attributes[i]:
+            if {attributes[i]['stroke-linejoin']} == {'miter'}:
+                strokeFeature += f"        .linejoin = VG_LITE_JOIN_MITER,\n"
+            elif {attributes[i]['stroke-linejoin']} == {'round'}:
+                strokeFeature += f"        .linejoin = VG_LITE_JOIN_ROUND,\n"
+            elif {attributes[i]['stroke-linejoin']} == {'bevel'}:
+                strokeFeature += f"        .linejoin = VG_LITE_JOIN_BEVEL,\n"
+        else:
+            strokeFeature += f"        .linejoin = 0,\n"
+        if 'stroke-width' in attributes[i]:
+            strokeFeature += f"        .strokeWidth = {attributes[i]['stroke-width']},\n"
+        else:
+            strokeFeature += f"        .strokeWidth = 1,\n"
+        if 'stroke-miterlimit' in attributes[i]:
+            strokeFeature += f"        .miterlimit = {attributes[i]['stroke-miterlimit']},\n"
+        else:
+            strokeFeature += f"        .miterlimit = 0,\n"
+        if 'stroke-dasharray' in attributes[i]:
+            dashPattern = f"static float stroke_dash_pattern_path{i+1}[] = {{\n"
+            dashPattern += f"        {attributes[i]['stroke-dasharray']}"
+            dashPattern += "\n};\n"
+            print(dashPattern)
+            strokeFeature += f"        .dashPattern = (float*)stroke_dash_pattern_path{i+1},\n"
+            temp = list({attributes[i]['stroke-dasharray']})[0]
+            strokeFeature += f"        .dashPatternCnt = {len(temp.split(','))},\n"
+        else:
+            strokeFeature += f"        .dashPattern = NULL,\n"
+            strokeFeature += f"        .dashPatternCnt = 0,\n"
+        if 'stroke-dashoffset' in attributes[i]:
+            strokeFeature += f"        .dashPhase = {attributes[i]['stroke-dashoffset']},\n"
+        else:
+            strokeFeature += f"        .dashPhase = 0,\n"
+
+        name = attributes[i]['stroke']
+        stroke_color = parse_color(name)
+        if "url" in name:
+            fill_data = (name.replace('url(#', '').replace(')', ''))
+        elif stroke_color:
+            opa = (stroke_color & 0xFF000000) >> 24
+            r = (stroke_color & 0x00FF0000) >> 16
+            g = (stroke_color & 0x0000FF00) >> 8
+            b = (stroke_color & 0x000000FF)
+            bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
+            strokeFeature += f"        .strokeColor = {hex(bgr_color)}\n"
+        else:
+            print("Error: Fill value not supported", sep="---",file=sys.stderr)
+        strokeFeature += f"    }},\n"
+
+    stroke_value = ""
+    if 'stroke' in attributes[i]:
+        stroke_value = attributes[i].get('stroke')
+        if stroke_value == 'none':
+            strokeFeature += f"    {{\n"
+            strokeFeature += f"        NULL,\n"
+            strokeFeature += f"    }},\n"
+
+    else:
+        strokeFeature += f"    {{\n"
+        strokeFeature += f"        NULL,\n"
+        strokeFeature += f"    }},\n"
 
     if 'style' in attributes[i] and attributes[i]['style'] != 'none':
         # fill-paint
@@ -461,19 +544,16 @@ for redpath in paths:
             r = (color & 0xFF0000) >> 16
             g = (color & 0x00FF00) >> 8
             b = (color & 0x0000FF)
-            fill_path_output += " 1,"
         else:
             m = re.match(r'fill:.*rgb\((\d+),\s*(\d+),\s*(\d+)\)', attributes[i]['style'])
             if m:
                 r=int(m.group(1))
                 g=int(m.group(2))
                 b=int(m.group(3))
-                fill_path_output += " 1,"
             else:
                 print("Error: Style value not supported", sep="---",file=sys.stderr)
                 assert(0)
         if opacity:
-            fill_path_output += " 1,"
             opa = int(255*float(opacity.group(1)))
             opa = (opa & 0xFF)
         else:
@@ -676,28 +756,8 @@ for redpath in paths:
     if not grad_found:
         lingrad_to_path_output += f"    NULL,\n"
         radgrad_to_path_output += f"    NULL,\n"
+        fill_path_output += " 1,"
         index += 1
-
-    if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
-        out_cmd.extend('S')
-        if 'stroke-linecap' in attributes[i]:
-            out_cmd.extend(TAGS[attributes[i]['stroke-linecap']])
-        if 'stroke-linejoin' in attributes[i]:
-            out_cmd.extend(TAGS[attributes[i]['stroke-linejoin']])
-        if 'stroke-miterlimit' in attributes[i]:
-            out_arg.extend([attributes[i]['stroke-miterlimit']])
-        if 'stroke-width' in attributes[i]:
-            out_arg.extend([attributes[i]['stroke-width']])
-
-        # stroke-paint
-        m = re.match(r'rgb\((\d+),(\d+),(\d+)\)', attributes[i]['stroke'])
-        if m:
-            r=int(m.group(1))
-            g=int(m.group(2))
-            b=int(m.group(3))
-            out_arg.extend([r/255, g/255, b/255, 1.0])
-        else:
-            print("Error: Stroke value not supported", sep="---",file=sys.stderr)
 
     # add the Path
     out_arg.extend([len(p_arg)])
@@ -719,14 +779,15 @@ if radgrad_to_path_output.endswith(",\n"):
 fill_path_output += "\n};\n"
 lingrad_to_path_output += "\n};\n\n"
 radgrad_to_path_output += "\n};\n\n"
+strokeFeature += "\n};\n\n"
 
+print(strokeFeature)
 
 if gradPresent == True:
     print(lingrad_to_path_output)
     print(radgrad_to_path_output)
 
 print(fill_path_output)
-
 
 print ("static gradient_mode_t %s_gradient_info = {" % imageName)
 
@@ -745,6 +806,7 @@ print("    .image_name =\"%s\"," % imageName)
 print("    .image_size = {%d, %d}," % (int(float(svg_attributes['width'])), int(float(svg_attributes['height']))))
 print("    .data_format = %s," % VGLITE_DATA_TYPES[data_type])
 print("    .path_count = %d," % len(paths))
+print(f"    .stroke_info = {imageName}_stroke_info_data,")
 print("    .paths_info = {")
 for i, new_id_value in enumerate(generated_ids):
     path_name = "%s_%s_data" % (imageName, new_id_value)
@@ -797,9 +859,9 @@ lines = []
 for i in range(len(paths)):
     if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
         lines.append("APP_VG_LITE_DRAW_ZERO")
-    elif ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
+    elif (('fill' in attributes[i] and attributes[i]['fill'] == 'none') or 'fill' not in attributes[i]) and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
         lines.append("APP_VG_LITE_DRAW_STROKE_PATH")
-    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
+    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and (('stroke' in attributes[i] and attributes[i]['stroke'] == 'none') or 'stroke' not in attributes[i]):
         lines.append("APP_VG_LITE_DRAW_FILL_PATH")
     elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
         lines.append("APP_VG_LITE_DRAW_FILL_STROKE_PATH")
