@@ -266,6 +266,7 @@ g_cmd = []
 g_arg = []
 i = 0
 gradPresent = False
+strokePresent = False
 color_data = []
 
 data_type = "int32_t"
@@ -487,6 +488,7 @@ for redpath in paths:
 
     if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
         out_cmd.extend('S')
+        strokePresent = True
         strokeFeature += f"    {{\n"
         if 'stroke-linecap' in attributes[i]:
             if {attributes[i]['stroke-linecap']} == {'butt'}:
@@ -844,7 +846,8 @@ lingrad_to_path_output += "\n};\n\n"
 radgrad_to_path_output += "\n};\n\n"
 strokeFeature += "\n};\n\n"
 
-print(strokeFeature)
+if strokePresent == True:
+    print(strokeFeature)
 print(hybrid_path_output)
 
 if gradPresent == True:
@@ -868,7 +871,10 @@ print("    .image_name =\"%s\"," % imageName)
 print("    .image_size = {%d, %d}," % (int(float(svg_attributes['width'])), int(float(svg_attributes['height']))))
 print("    .data_format = %s," % VGLITE_DATA_TYPES[data_type])
 print("    .path_count = %d," % len(paths))
-print(f"    .stroke_info = {imageName}_stroke_info_data,")
+if strokePresent == True:
+    print(f"    .stroke_info = {imageName}_stroke_info_data,")
+else:
+    print(f"    .stroke_info = NULL,")
 print("    .paths_info = {")
 for i, new_id_value in enumerate(generated_ids):
     path_name = "%s_%s_data" % (imageName, new_id_value)
