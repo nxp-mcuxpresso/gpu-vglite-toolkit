@@ -490,6 +490,8 @@ for redpath in paths:
         out_cmd.extend('S')
         strokePresent = True
         strokeFeature += f"    {{\n"
+        if 'id' in attributes[i]:
+            strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
         if 'stroke-linecap' in attributes[i]:
             if {attributes[i]['stroke-linecap']} == {'butt'}:
                 strokeFeature += f"        .linecap = VG_LITE_CAP_BUTT,\n"
@@ -552,11 +554,15 @@ for redpath in paths:
         stroke_value = attributes[i].get('stroke')
         if stroke_value == 'none':
             strokeFeature += f"    {{\n"
+            if 'id' in attributes[i]:
+                strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
             strokeFeature += f"        NULL,\n"
             strokeFeature += f"    }},\n"
 
     else:
         strokeFeature += f"    {{\n"
+        if 'id' in attributes[i]:
+            strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
         strokeFeature += f"        NULL,\n"
         strokeFeature += f"    }},\n"
 
