@@ -321,6 +321,7 @@ print("typedef struct image_info {")
 print("    char *image_name;")
 print("    int  image_size[2];")
 print("    vg_lite_format_t data_format;")
+print("    float *transform;")
 print("    int path_count;")
 print("    stroke_info_t *stroke_info;")
 print("    path_info_t paths_info[];")
@@ -408,12 +409,15 @@ def parse_color(color_str):
             return (255 << 24) | (r << 16) | (g << 8) | b
     elif color_str in colors:
         return colors[color_str] | 0xFF000000
+def convert_transform(array):
+    return ', '.join(', '.join(f'{val:.1f}f' for val in row) for row in array)
 
 hybrid_path_output = f"hybridPath_t {imageName}_hybrid_path[] = {{\n"
 strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
 lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
 radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[] = {{\n"
 fill_path_grad = []
+transform_output = f"static float {imageName}_transform_matrix[] = {{\n"
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
@@ -765,6 +769,11 @@ for redpath in paths:
 
                 fill_path_grad.append("VG_LITE_PAINT_RADIAL_GRADIENT")
                 gradPresent = True
+    if 'transform' in attributes[i]:
+        attributes[i]['path_transform'] = convert_transform(attributes[i]['path_transform'])
+        transform_output += f"{attributes[i]['path_transform']},\n"
+    else:
+        transform_output += f"1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,\n"
 
     if not grad_found:
         lingrad_to_path_output += f"    NULL,\n"
@@ -829,10 +838,14 @@ if lingrad_to_path_output.endswith(",\n"):
 if radgrad_to_path_output.endswith(",\n"):
     radgrad_to_path_output = radgrad_to_path_output[:-2]
 
+if transform_output.endswith(",\n"):
+    transform_output = transform_output[:-2]
+
 hybrid_path_output += "\n};\n"
 lingrad_to_path_output += "\n};\n\n"
 radgrad_to_path_output += "\n};\n\n"
 strokeFeature += "\n};\n\n"
+transform_output += "\n};\n"
 
 if strokePresent == True:
     print(strokeFeature)
@@ -853,11 +866,14 @@ else:
 print(f"    .hybridPath = {imageName}_hybrid_path")
 print("};")
 print("")
+print(transform_output)
+
 
 print("static image_info_t %s = {" % imageName)
 print("    .image_name =\"%s\"," % imageName)
 print("    .image_size = {%d, %d}," % (int(float(svg_attributes['width'])), int(float(svg_attributes['height']))))
 print("    .data_format = %s," % VGLITE_DATA_TYPES[data_type])
+print("    .transform = %s_transform_matrix," % imageName)
 print("    .path_count = %d," % len(paths))
 if strokePresent == True:
     print(f"    .stroke_info = {imageName}_stroke_info_data,")
