@@ -307,14 +307,14 @@ print("    %s  *path_data;" % data_type)
 print("} path_info_t;")
 print("")
 print("typedef struct stroke_info {")
-print("    uint8_t linecap;")
-print("    uint8_t linejoin;")
-print("    float strokeWidth;")
-print("    float miterlimit;")
-print("    float *dashPattern;")
 print("    uint32_t dashPatternCnt;")
 print("    float dashPhase;")
+print("    float *dashPattern;")
+print("    float strokeWidth;")
+print("    float miterlimit;")
 print("    uint32_t strokeColor;")
+print("    uint8_t linecap;")
+print("    uint8_t linejoin;")
 print("} stroke_info_t;")
 print("")
 print("typedef struct image_info {")
@@ -344,8 +344,8 @@ print("    stopValue_t *stops;")
 print("} radialGradient_t;")
 print("")
 print("typedef struct hybridPath {")
-print("    uint8_t fillType;")
-print("    uint8_t pathType;")
+print("    fill_mode_t fillType;")
+print("    vg_lite_draw_path_type_t pathType;")
 print("} hybridPath_t;")
 print("")
 print("typedef struct gradient_mode {")
@@ -356,24 +356,6 @@ print("}gradient_mode_t;")
 print("")
 print("#endif")
 print("")
-print("")
-
-print("#if VGLITE_HEADER_VERSION <= 6");
-print("#define TEST_DATA_MAX 10");
-print("#define APP_VG_LITE_DRAW_ZERO               (VG_LITE_DRAW_STROKE_PATH)");
-print("#define APP_VG_LITE_DRAW_STROKE_PATH        (VG_LITE_DRAW_STROKE_PATH)");
-print("#define APP_VG_LITE_DRAW_FILL_PATH          (VG_LITE_DRAW_FILL_PATH)");
-print("#define APP_VG_LITE_DRAW_FILL_STROKE_PATH   (VG_LITE_DRAW_FILL_STROKE_PATH)");
-print("#define APP_PATH_FILL_TYPE  vg_lite_draw_path_type_t")
-
-print("#else");
-print("#define TEST_DATA_MAX 12");
-print("#define APP_VG_LITE_DRAW_ZERO               (VG_LITE_DRAW_ZERO)");
-print("#define APP_VG_LITE_DRAW_STROKE_PATH        (VG_LITE_DRAW_STROKE_PATH)");
-print("#define APP_VG_LITE_DRAW_FILL_PATH          (VG_LITE_DRAW_FILL_PATH)");
-print("#define APP_VG_LITE_DRAW_FILL_STROKE_PATH   (VG_LITE_DRAW_FILL_STROKE_PATH)");
-print("#define APP_PATH_FILL_TYPE  vg_lite_path_type_t")
-print("#endif");
 print("")
 
 counter = 0
@@ -492,6 +474,42 @@ for redpath in paths:
         strokeFeature += f"    {{\n"
         if 'id' in attributes[i]:
             strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
+        if 'stroke-dasharray' in attributes[i]:
+            dashPattern = f"static float stroke_dash_pattern_path{i+1}[] = {{\n"
+            dashPattern += f"        {attributes[i]['stroke-dasharray']}"
+            dashPattern += "\n};\n"
+            print(dashPattern)
+            temp = list({attributes[i]['stroke-dasharray']})[0]
+            strokeFeature += f"        .dashPatternCnt = {len(temp.split(','))},\n"
+            strokeFeature += f"        .dashPattern = (float*)stroke_dash_pattern_path{i+1},\n"
+        else:
+            strokeFeature += f"        .dashPatternCnt = 0,\n"
+            strokeFeature += f"        .dashPattern = NULL,\n"
+        if 'stroke-dashoffset' in attributes[i]:
+            strokeFeature += f"        .dashPhase = {attributes[i]['stroke-dashoffset']},\n"
+        else:
+            strokeFeature += f"        .dashPhase = 0,\n"
+        if 'stroke-width' in attributes[i]:
+            strokeFeature += f"        .strokeWidth = {attributes[i]['stroke-width']},\n"
+        else:
+            strokeFeature += f"        .strokeWidth = 1,\n"
+        if 'stroke-miterlimit' in attributes[i]:
+            strokeFeature += f"        .miterlimit = {attributes[i]['stroke-miterlimit']},\n"
+        else:
+            strokeFeature += f"        .miterlimit = 0,\n"
+        name = attributes[i]['stroke']
+        stroke_color = parse_color(name)
+        if "url" in name:
+            fill_data = (name.replace('url(#', '').replace(')', ''))
+        elif stroke_color:
+            opa = (stroke_color & 0xFF000000) >> 24
+            r = (stroke_color & 0x00FF0000) >> 16
+            g = (stroke_color & 0x0000FF00) >> 8
+            b = (stroke_color & 0x000000FF)
+            bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
+            strokeFeature += f"        .strokeColor = {hex(bgr_color)},\n"
+        else:
+            print("Error: Fill value not supported", sep="---",file=sys.stderr)
         if 'stroke-linecap' in attributes[i]:
             if {attributes[i]['stroke-linecap']} == {'butt'}:
                 strokeFeature += f"        .linecap = VG_LITE_CAP_BUTT,\n"
@@ -503,50 +521,13 @@ for redpath in paths:
             strokeFeature += f"        .linecap = 0,\n"
         if 'stroke-linejoin' in attributes[i]:
             if {attributes[i]['stroke-linejoin']} == {'miter'}:
-                strokeFeature += f"        .linejoin = VG_LITE_JOIN_MITER,\n"
+                strokeFeature += f"        .linejoin = VG_LITE_JOIN_MITER\n"
             elif {attributes[i]['stroke-linejoin']} == {'round'}:
-                strokeFeature += f"        .linejoin = VG_LITE_JOIN_ROUND,\n"
+                strokeFeature += f"        .linejoin = VG_LITE_JOIN_ROUND\n"
             elif {attributes[i]['stroke-linejoin']} == {'bevel'}:
-                strokeFeature += f"        .linejoin = VG_LITE_JOIN_BEVEL,\n"
+                strokeFeature += f"        .linejoin = VG_LITE_JOIN_BEVEL\n"
         else:
-            strokeFeature += f"        .linejoin = 0,\n"
-        if 'stroke-width' in attributes[i]:
-            strokeFeature += f"        .strokeWidth = {attributes[i]['stroke-width']},\n"
-        else:
-            strokeFeature += f"        .strokeWidth = 1,\n"
-        if 'stroke-miterlimit' in attributes[i]:
-            strokeFeature += f"        .miterlimit = {attributes[i]['stroke-miterlimit']},\n"
-        else:
-            strokeFeature += f"        .miterlimit = 0,\n"
-        if 'stroke-dasharray' in attributes[i]:
-            dashPattern = f"static float stroke_dash_pattern_path{i+1}[] = {{\n"
-            dashPattern += f"        {attributes[i]['stroke-dasharray']}"
-            dashPattern += "\n};\n"
-            print(dashPattern)
-            strokeFeature += f"        .dashPattern = (float*)stroke_dash_pattern_path{i+1},\n"
-            temp = list({attributes[i]['stroke-dasharray']})[0]
-            strokeFeature += f"        .dashPatternCnt = {len(temp.split(','))},\n"
-        else:
-            strokeFeature += f"        .dashPattern = NULL,\n"
-            strokeFeature += f"        .dashPatternCnt = 0,\n"
-        if 'stroke-dashoffset' in attributes[i]:
-            strokeFeature += f"        .dashPhase = {attributes[i]['stroke-dashoffset']},\n"
-        else:
-            strokeFeature += f"        .dashPhase = 0,\n"
-
-        name = attributes[i]['stroke']
-        stroke_color = parse_color(name)
-        if "url" in name:
-            fill_data = (name.replace('url(#', '').replace(')', ''))
-        elif stroke_color:
-            opa = (stroke_color & 0xFF000000) >> 24
-            r = (stroke_color & 0x00FF0000) >> 16
-            g = (stroke_color & 0x0000FF00) >> 8
-            b = (stroke_color & 0x000000FF)
-            bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
-            strokeFeature += f"        .strokeColor = {hex(bgr_color)}\n"
-        else:
-            print("Error: Fill value not supported", sep="---",file=sys.stderr)
+            strokeFeature += f"        .linejoin = 0\n"
         strokeFeature += f"    }},\n"
 
     stroke_value = ""
@@ -666,7 +647,7 @@ for redpath in paths:
                     lingrad_to_path_output += f"    &{imageName}_linear_gradients_{index},\n"
                     radgrad_to_path_output += f"    NULL,\n"
 
-                fill_path_grad.extend('2')
+                fill_path_grad.append("FILL_LINEAR_GRAD")
                 gradPresent = True
 
         elif grad['name'] == 'radialGradient':
@@ -782,13 +763,13 @@ for redpath in paths:
                     lingrad_to_path_output += f"    NULL,\n"
                     radgrad_to_path_output += f"    &{imageName}_radial_gradients_{index},\n"
 
-                fill_path_grad.extend("3")
+                fill_path_grad.append("FILL_RADIAL_GRAD")
                 gradPresent = True
 
     if not grad_found:
         lingrad_to_path_output += f"    NULL,\n"
         radgrad_to_path_output += f"    NULL,\n"
-        fill_path_grad.extend("1")
+        fill_path_grad.append("FILL_CONSTANT")
         index += 1
 
     # add the Path
@@ -800,46 +781,47 @@ for redpath in paths:
     i += 1
 for i in range(len(paths)):
     # Fill = none, Stroke = none
+    # By default, a vector path is considered VG_LITE_DRAW_FILL_PATH.
     if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
-        hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_ZERO }},\n"
-        hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+        hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_ZERO }},\n"
+        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
     # No fill or Fill = none, Stroke in attribute
     elif (('fill' in attributes[i] and attributes[i]['fill'] == 'none') or ('fill' not in attributes[i])) and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
         # Stroke with gradient feature
         if ('url' in attributes[i]['stroke']):
-            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
         # Normal stroke
         else:
-            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
     # No stroke or stroke = none, Fill in attribute
     elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and (('stroke' in attributes[i] and attributes[i]['stroke'] == 'none') or ('stroke' not in attributes[i])):
         # Fill with gradient feature
         if ('url' in attributes[i]['fill']):
-            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
         # Normal fill
         else:
-            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
     # Both stroke and fill in attribute
     elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
         # Fill with gradient feature
         if ('url' in attributes[i]['fill']):
-            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = 1, .pathType = APP_VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
         # Stroke with gradient feature
         elif ('url' in attributes[i]['stroke']):
-            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = 1, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
         # Normal fill and stroke
         else:
-            hybrid_path_output += f"    {{ .fillType = 1, .pathType = APP_VG_LITE_DRAW_FILL_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_FILL_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
     else:
-        hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = APP_VG_LITE_DRAW_FILL_PATH }},\n"
-        hybrid_path_output += f"    {{ .fillType = NULL, .pathType = NULL }},\n"
+        hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
 
 if lingrad_to_path_output.endswith(",\n"):
     lingrad_to_path_output = lingrad_to_path_output[:-2]
