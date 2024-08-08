@@ -344,7 +344,7 @@ print("    stopValue_t *stops;")
 print("} radialGradient_t;")
 print("")
 print("typedef struct hybridPath {")
-print("    fill_mode_t fillType;")
+print("    vg_lite_paint_type_t fillType;")
 print("    vg_lite_draw_path_type_t pathType;")
 print("} hybridPath_t;")
 print("")
@@ -647,7 +647,7 @@ for redpath in paths:
                     lingrad_to_path_output += f"    &{imageName}_linear_gradients_{index},\n"
                     radgrad_to_path_output += f"    NULL,\n"
 
-                fill_path_grad.append("FILL_LINEAR_GRAD")
+                fill_path_grad.append("VG_LITE_PAINT_LINEAR_GRADIENT")
                 gradPresent = True
 
         elif grad['name'] == 'radialGradient':
@@ -763,13 +763,13 @@ for redpath in paths:
                     lingrad_to_path_output += f"    NULL,\n"
                     radgrad_to_path_output += f"    &{imageName}_radial_gradients_{index},\n"
 
-                fill_path_grad.append("FILL_RADIAL_GRAD")
+                fill_path_grad.append("VG_LITE_PAINT_RADIAL_GRADIENT")
                 gradPresent = True
 
     if not grad_found:
         lingrad_to_path_output += f"    NULL,\n"
         radgrad_to_path_output += f"    NULL,\n"
-        fill_path_grad.append("FILL_CONSTANT")
+        fill_path_grad.append("VG_LITE_PAINT_COLOR")
         index += 1
 
     # add the Path
@@ -781,47 +781,47 @@ for redpath in paths:
     i += 1
 for i in range(len(paths)):
     # Fill = none, Stroke = none
-    # By default, a vector path is considered VG_LITE_DRAW_FILL_PATH.
+    # By default, a vector path is considered VG_LITE_DRAW_ZERO.
     if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
         hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_ZERO }},\n"
-        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+        hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_ZERO, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # No fill or Fill = none, Stroke in attribute
     elif (('fill' in attributes[i] and attributes[i]['fill'] == 'none') or ('fill' not in attributes[i])) and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
         # Stroke with gradient feature
         if ('url' in attributes[i]['stroke']):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_ZERO, .pathType = VG_LITE_DRAW_ZERO }},\n"
         # Normal stroke
         else:
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_ZERO, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # No stroke or stroke = none, Fill in attribute
     elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and (('stroke' in attributes[i] and attributes[i]['stroke'] == 'none') or ('stroke' not in attributes[i])):
         # Fill with gradient feature
         if ('url' in attributes[i]['fill']):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_ZERO, .pathType = VG_LITE_DRAW_ZERO }},\n"
         # Normal fill
         else:
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_ZERO, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # Both stroke and fill in attribute
     elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
         # Fill with gradient feature
         if ('url' in attributes[i]['fill']):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_STROKE, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
         # Stroke with gradient feature
         elif ('url' in attributes[i]['stroke']):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_COLOR, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
         # Normal fill and stroke
         else:
-            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_FILL_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_COLOR, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_STROKE, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
     else:
         hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
-        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+        hybrid_path_output += f"    {{ .fillType = VG_LITE_PAINT_ZERO, .pathType = VG_LITE_DRAW_ZERO }},\n"
 
 if lingrad_to_path_output.endswith(",\n"):
     lingrad_to_path_output = lingrad_to_path_output[:-2]
