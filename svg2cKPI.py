@@ -409,6 +409,7 @@ def parse_color(color_str):
             return (255 << 24) | (r << 16) | (g << 8) | b
     elif color_str in colors:
         return colors[color_str] | 0xFF000000
+
 def convert_transform(array):
     return ', '.join(', '.join(f'{val:.1f}f' for val in row) for row in array)
 
@@ -616,11 +617,6 @@ for redpath in paths:
                 if 'gradientUnits' in grad:
                     if (grad['gradientUnits'] == 'userSpaceOnUse'):
                         x1, y1, x2, y2 = process_lines(lines)
-                        if 'transform' in grad:
-                            x1 = float(grad['x1'])
-                            y1 = float(grad['y1'])
-                            x2 = float(grad['x2'])
-                            y2 = float(grad['y2'])
                 if(('gradientUnits' not in grad) or (grad['gradientUnits'] == 'objectBoundingBox')):
                     if 'x1' in grad and 'y1' in grad and 'x2' in grad and 'y2' in grad:                        
                         x1 = min_x + (max_x - min_x) * float(grad['x1'])
@@ -690,36 +686,14 @@ for redpath in paths:
                 min_x, max_x, min_y, max_y = get_min_max_coordinates(parsed_lines)
                 if 'gradientUnits' in grad:
                     if (grad['gradientUnits'] == 'userSpaceOnUse'):
-                        #All gradient parameters are available along with transform
-                        if all(key in grad for key in ('cx', 'cy', 'r', 'fx', 'fy')) and 'transform' in attributes[i]:
-                            m1 = attributes[i]['path_transform']
-                            m2 = [float(grad['cx']), float(grad['cy']), 1]
-                            coordinatesTrans = np.dot(m1,m2)
-                            cx = coordinatesTrans[0]
-                            cy = coordinatesTrans[1]
-                            r = float(grad['r'])
-                            m2 = [float(grad['fx']), float(grad['fy']), 1]
-                            coordinatesTrans = np.dot(m1,m2)
-                            fx = coordinatesTrans[0]
-                            fy = coordinatesTrans[1]
-                        #cx, cy and r gradient parameters are available but fx and fy is missing
-                        elif all(key in grad for key in ('cx', 'cy', 'r'))  and ('fx' and 'fy') not in grad and 'transform' in attributes[i]:
-                            m1 = attributes[i]['path_transform']
-                            m2 = [float(grad['cx']), float(grad['cy']), 1]
-                            coordinatesTrans = np.dot(m1,m2)
-                            cx = coordinatesTrans[0]
-                            cy = coordinatesTrans[1]
-                            r = float(grad['r'])
-                            fx = coordinatesTrans[0]
-                            fy = coordinatesTrans[1]
-                        #cx, cy and r gradient parameters are available but fx, fy and transform function is missing
-                        elif all(key in grad for key in ('cx', 'cy', 'r'))  and ('fx' and 'fy') not in grad and 'transform' not in attributes[i]:
+                        #All gradient parameters are available
+                        if all(key in grad for key in ('cx', 'cy', 'r')):
                             cx = float(grad['cx'])
                             cy = float(grad['cy'])
                             r = float(grad['r'])
                             fx = float(grad['cx'])
                             fy = float(grad['cy'])
-                        #All gradient parameters are available but transform function is missing
+                        #All gradient parameters are available
                         else:
                             cx = float(grad['cx'])
                             cy = float(grad['cy'])
