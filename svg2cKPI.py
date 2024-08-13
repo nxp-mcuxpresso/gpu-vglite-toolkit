@@ -279,11 +279,6 @@ VGLITE_DATA_TYPES = {
     "float"  :  "VG_LITE_FP32"
 }
 
-
-def cmd_add(out_cmd, attributes, rule_name):
-    if rule_name in attributes:
-        out_cmd.extend(TAGS[attributes['fill-rule']])
-
 imageName = Path(input_file).stem
 
 print("#ifndef STATIC_PATH_DEFINES_H")
@@ -353,6 +348,7 @@ print("typedef struct gradient_mode {")
 print("    linearGradient_t **linearGrads;")
 print("    radialGradient_t **radialGrads;")
 print("    hybridPath_t *hybridPath;")
+print("    vg_lite_fill_t *fillRule;")
 print("}gradient_mode_t;")
 print("")
 print("#endif")
@@ -442,6 +438,8 @@ lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[
 radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[] = {{\n"
 fill_path_grad = []
 transform_output = f"static float {imageName}_transform_matrix[] = {{\n"
+fill_rule_output = f"static vg_lite_fill_t {imageName}_fill_rule[] = {{\n"
+
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
@@ -471,8 +469,6 @@ for redpath in paths:
 
     fill_data = "" 
     if 'fill' in attributes[i] and attributes[i]['fill'] != 'none':
-        cmd_add(out_cmd, attributes[i], 'fill-rule')
-        cmd_add(out_cmd, attributes[i], 'fill-opacity')
         name = attributes[i]['fill']
 
         fill_color = parse_color(name)
@@ -768,6 +764,14 @@ for redpath in paths:
     else:
         transform_output += f"1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,\n"
 
+    if 'fill-rule' in attributes[i]:
+        if (attributes[i]['fill-rule'] == "evenodd"):
+            fill_rule_output += f"VG_LITE_FILL_EVEN_ODD,\n"
+        else:
+            fill_rule_output += f"VG_LITE_FILL_NON_ZERO,\n"
+    else:
+        fill_rule_output += f"VG_LITE_FILL_EVEN_ODD,\n"
+
     if not grad_found:
         lingrad_to_path_output += f"    NULL,\n"
         radgrad_to_path_output += f"    NULL,\n"
@@ -834,11 +838,15 @@ if radgrad_to_path_output.endswith(",\n"):
 if transform_output.endswith(",\n"):
     transform_output = transform_output[:-2]
 
+if fill_rule_output.endswith(",\n"):
+    fill_rule_output = fill_rule_output[:-2]
+
 hybrid_path_output += "\n};\n"
 lingrad_to_path_output += "\n};\n\n"
 radgrad_to_path_output += "\n};\n\n"
 strokeFeature += "\n};\n\n"
 transform_output += "\n};\n"
+fill_rule_output += "\n};\n"
 
 if strokePresent == True:
     print(strokeFeature)
@@ -848,6 +856,8 @@ if gradPresent == True:
     print(lingrad_to_path_output)
     print(radgrad_to_path_output)
 
+print(fill_rule_output)
+
 print ("static gradient_mode_t %s_gradient_info = {" % imageName)
 
 if gradPresent == True:
@@ -856,7 +866,8 @@ if gradPresent == True:
 else:
     print(f"    .linearGrads = NULL,")
     print(f"    .radialGrads = NULL,")
-print(f"    .hybridPath = {imageName}_hybrid_path")
+print(f"    .hybridPath = {imageName}_hybrid_path,")
+print(f"    .fillRule = {imageName}_fill_rule")
 print("};")
 print("")
 print(transform_output)
