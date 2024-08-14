@@ -413,6 +413,25 @@ def parse_color(color_str):
 def convert_transform(array):
     return ', '.join(', '.join(f'{val:.1f}f' for val in row) for row in array)
 
+def getSolidColor(fill_data):
+    isSolidColor = False
+    bgr_color = 0
+    for solid_color in attributes:
+        if solid_color['name'] == 'solidColor':
+            solidColorId = solid_color['id']
+            if solidColorId == fill_data:
+                if 'solid-color' in solid_color:
+                    name = solid_color['solid-color']
+                    HexColorCode = parse_color(name)
+                    if HexColorCode:
+                        isSolidColor = True
+                        opa = (HexColorCode & 0xFF000000) >> 24
+                        r = (HexColorCode & 0x00FF0000) >> 16
+                        g = (HexColorCode & 0x0000FF00) >> 8
+                        b = (HexColorCode & 0x000000FF)
+                        bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
+    return bgr_color, isSolidColor
+
 hybrid_path_output = f"hybridPath_t {imageName}_hybrid_path[] = {{\n"
 strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
 lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
@@ -455,7 +474,8 @@ for redpath in paths:
         fill_color = parse_color(name)
         if "url" in name:
             fill_data = (name.replace('url(#', '').replace(')', ''))
-            color_data.append("0")
+            fillColor, isSolidColor = getSolidColor(fill_data)
+            color_data.append("%x" % fillColor)
         elif fill_color:
             opa = (fill_color & 0xFF000000) >> 24
             r = (fill_color & 0x00FF0000) >> 16
@@ -506,6 +526,9 @@ for redpath in paths:
         stroke_color = parse_color(name)
         if "url" in name:
             fill_data = (name.replace('url(#', '').replace(')', ''))
+            fillColor, isSolidColor = getSolidColor(fill_data)
+            if isSolidColor == True:
+                strokeFeature += f"        .strokeColor = {hex(fillColor)},\n"
         elif stroke_color:
             opa = (stroke_color & 0xFF000000) >> 24
             r = (stroke_color & 0x00FF0000) >> 16
