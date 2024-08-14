@@ -394,9 +394,14 @@ def parse_color(color_str):
             b = int(color[4:6], 16)
             return (255 << 24) | (r << 16) | (g << 8) | b
     elif color_str.startswith('rgb'):
-        m = re.match(r'rgb\((\d+),(\d+),(\d+)\)', color_str)
+        m = re.match(r'rgb\(\s*([\d\.]+)%?\s*,\s*([\d\.]+)%?\s*,\s*([\d\.]+)%?\s*\)', color_str)
         if m:
-            r, g, b = map(int, m.groups())
+            r, g, b = m.groups()
+            # Convert percentages to 0-255 scale if necessary
+            if '%' in color_str:
+                r, g, b = [int(float(val) * 2.55) for val in (r, g, b)]
+            else:
+                r, g, b = map(int, (r, g, b))
             return (255 << 24) | (r << 16) | (g << 8) | b
     elif color_str in colors:
         return colors[color_str] | 0xFF000000
