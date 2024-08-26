@@ -309,8 +309,8 @@ print("    float *dashPattern;")
 print("    float strokeWidth;")
 print("    float miterlimit;")
 print("    uint32_t strokeColor;")
-print("    uint8_t linecap;")
-print("    uint8_t linejoin;")
+print("    vg_lite_cap_style_t linecap;")
+print("    vg_lite_join_style_t linejoin;")
 print("} stroke_info_t;")
 print("")
 print("typedef struct image_info {")
@@ -534,7 +534,7 @@ for redpath in paths:
             elif {attributes[i]['stroke-linecap']} == {'square'}:
                 strokeFeature += f"        .linecap = VG_LITE_CAP_SQUARE,\n"
         else:
-            strokeFeature += f"        .linecap = 0,\n"
+            strokeFeature += f"        .linecap = VG_LITE_CAP_BUTT,\n"
         if 'stroke-linejoin' in attributes[i]:
             if {attributes[i]['stroke-linejoin']} == {'miter'}:
                 strokeFeature += f"        .linejoin = VG_LITE_JOIN_MITER\n"
@@ -543,7 +543,7 @@ for redpath in paths:
             elif {attributes[i]['stroke-linejoin']} == {'bevel'}:
                 strokeFeature += f"        .linejoin = VG_LITE_JOIN_BEVEL\n"
         else:
-            strokeFeature += f"        .linejoin = 0\n"
+            strokeFeature += f"        .linejoin = VG_LITE_JOIN_MITER\n"
         strokeFeature += f"    }},\n"
 
     stroke_value = ""
