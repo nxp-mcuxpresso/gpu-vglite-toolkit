@@ -413,6 +413,14 @@ def parse_color(color_str):
 def convert_transform(array):
     return ', '.join(', '.join(f'{val:.1f}f' for val in row) for row in array)
 
+def bgr_color_convert(colorCode):
+    opa = (colorCode & 0xFF000000) >> 24
+    r = (colorCode & 0x00FF0000) >> 16
+    g = (colorCode & 0x0000FF00) >> 8
+    b = (colorCode & 0x000000FF)
+    bgr_format_color = (opa << 24) | (b << 16) | (g << 8) | r
+    return bgr_format_color
+
 def getSolidColor(fill_data):
     isSolidColor = False
     bgr_color = 0
@@ -425,11 +433,7 @@ def getSolidColor(fill_data):
                     HexColorCode = parse_color(name)
                     if HexColorCode:
                         isSolidColor = True
-                        opa = (HexColorCode & 0xFF000000) >> 24
-                        r = (HexColorCode & 0x00FF0000) >> 16
-                        g = (HexColorCode & 0x0000FF00) >> 8
-                        b = (HexColorCode & 0x000000FF)
-                        bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
+                        bgr_color = bgr_color_convert(HexColorCode)
     return bgr_color, isSolidColor
 
 hybrid_path_output = f"hybridPath_t {imageName}_hybrid_path[] = {{\n"
@@ -477,12 +481,8 @@ for redpath in paths:
             fillColor, isSolidColor = getSolidColor(fill_data)
             color_data.append("%x" % fillColor)
         elif fill_color:
-            opa = (fill_color & 0xFF000000) >> 24
-            r = (fill_color & 0x00FF0000) >> 16
-            g = (fill_color & 0x0000FF00) >> 8
-            b = (fill_color & 0x000000FF)
-            bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
-            color_data.append("%x" % bgr_color)
+            bgr_fill_color = bgr_color_convert(fill_color)
+            color_data.append("%x" % bgr_fill_color)
         else:
             print("Error: Fill value not supported", sep="---",file=sys.stderr)
 
@@ -530,12 +530,8 @@ for redpath in paths:
             if isSolidColor == True:
                 strokeFeature += f"        .strokeColor = {hex(fillColor)},\n"
         elif stroke_color:
-            opa = (stroke_color & 0xFF000000) >> 24
-            r = (stroke_color & 0x00FF0000) >> 16
-            g = (stroke_color & 0x0000FF00) >> 8
-            b = (stroke_color & 0x000000FF)
-            bgr_color = (opa << 24) | (b << 16) | (g << 8) | r
-            strokeFeature += f"        .strokeColor = {hex(bgr_color)},\n"
+            bgr_stroke_color = bgr_color_convert(stroke_color)
+            strokeFeature += f"        .strokeColor = {hex(bgr_stroke_color)},\n"
         else:
             print("Error: Fill value not supported", sep="---",file=sys.stderr)
         if 'stroke-linecap' in attributes[i]:
