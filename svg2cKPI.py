@@ -374,12 +374,6 @@ def parse_coordinates(line):
     coordinates = re.findall(r'\d+\.\d+', line)
     return [float(num) for num in coordinates]
 
-def process_lines(lines):
-    all_coordinates = [parse_coordinates(line) for line in lines]
-    x1, y1 = all_coordinates[0]  # First value
-    x2, y2 = all_coordinates[-2]  # Second last value
-    return x1, y1, x2, y2
-
 def get_min_max_coordinates(parsed_lines):
     min_x = min(coord[0] for coord in parsed_lines)
     max_x = max(coord[0] for coord in parsed_lines)
@@ -631,7 +625,10 @@ for redpath in paths:
                 min_x, max_x, min_y, max_y = get_min_max_coordinates(parsed_lines)
                 if 'gradientUnits' in grad:
                     if (grad['gradientUnits'] == 'userSpaceOnUse'):
-                        x1, y1, x2, y2 = process_lines(lines)
+                        x1 = float(grad['x1'])
+                        y1 = float(grad['y1'])
+                        x2 = float(grad['x2'])
+                        y2 = float(grad['y2'])
                 if(('gradientUnits' not in grad) or (grad['gradientUnits'] == 'objectBoundingBox')):
                     if 'x1' in grad and 'y1' in grad and 'x2' in grad and 'y2' in grad:                        
                         x1 = min_x + (max_x - min_x) * float(grad['x1'])
