@@ -819,7 +819,7 @@ for i in range(len(paths)):
         # Fill with gradient feature
         if ('url' in attributes[i]['fill']):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = STROKE, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
         # Stroke with gradient feature
         elif ('url' in attributes[i]['stroke']):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
