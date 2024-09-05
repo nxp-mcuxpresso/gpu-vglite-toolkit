@@ -267,6 +267,7 @@ g_arg = []
 i = 0
 gradPresent = False
 strokePresent = False
+stroke_flag = False
 color_data = []
 
 data_type = "int32_t"
@@ -486,6 +487,7 @@ for redpath in paths:
     if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
         out_cmd.extend('S')
         strokePresent = True
+        stroke_flag = True
         strokeFeature += f"    {{\n"
         if 'id' in attributes[i]:
             strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
@@ -772,7 +774,11 @@ for redpath in paths:
     if not grad_found:
         lingrad_to_path_output += f"    NULL,\n"
         radgrad_to_path_output += f"    NULL,\n"
-        fill_path_grad.append("FILL_CONSTANT")
+        if stroke_flag == True:
+            fill_path_grad.append("STROKE")
+            stroke_flag = False
+        else:
+            fill_path_grad.append("FILL_CONSTANT")
         index += 1
 
     # add the Path
