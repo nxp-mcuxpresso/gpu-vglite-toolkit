@@ -826,8 +826,8 @@ for i in range(len(paths)):
             hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
         # Normal fill and stroke
         else:
-            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_FILL_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = STROKE, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
     else:
         hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
         hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
