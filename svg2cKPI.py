@@ -787,27 +787,27 @@ for i in range(len(paths)):
     # By default, a vector path is considered VG_LITE_DRAW_FILL_PATH.
     if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
         hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_ZERO }},\n"
-        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # No fill or Fill = none, Stroke in attribute
     elif (('fill' in attributes[i] and attributes[i]['fill'] == 'none') or ('fill' not in attributes[i])) and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
         # Stroke with gradient feature
         if ('url' in attributes[i]['stroke']):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
         # Normal stroke
         else:
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # No stroke or stroke = none, Fill in attribute
     elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and (('stroke' in attributes[i] and attributes[i]['stroke'] == 'none') or ('stroke' not in attributes[i])):
         # Fill with gradient feature
         if ('url' in attributes[i]['fill']):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
         # Normal fill
         else:
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
-            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+            hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # Both stroke and fill in attribute
     elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
         # Fill with gradient feature
@@ -824,7 +824,7 @@ for i in range(len(paths)):
             hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
     else:
         hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
-        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
+        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
 
 if lingrad_to_path_output.endswith(",\n"):
     lingrad_to_path_output = lingrad_to_path_output[:-2]
