@@ -735,7 +735,7 @@ for redpath in paths:
                     if all(key in grad for key in ('cx', 'cy', 'r', 'fx', 'fy')):
                         cx = min_x + (max_x - min_x) * convert_offset(grad['cx'])
                         cy = min_y + (max_y - min_y) * convert_offset(grad['cy'])
-                        cx = min(min_x + (max_x - min_x) * convert_offset(grad['r']), min_y + (max_y - min_y) * convert_offset(grad['r']))
+                        r = min(min_x + (max_x - min_x) * convert_offset(grad['r']), min_y + (max_y - min_y) * convert_offset(grad['r']))
                         fx = min_x + (max_x - min_x) * convert_offset(grad['fx'])
                         fy = min_y + (max_y - min_y) * convert_offset(grad['fy'])
                     #cx, cy and r gradient parameters are available but fx and fy is missing
