@@ -491,13 +491,11 @@ for redpath in paths:
             color_data.append("%x" % bgr_fill_color)
         else:
             print("Error: Fill value not supported", sep="---",file=sys.stderr)
-
-    if 'fill' in attributes[i]:
-        fill_value = attributes[i].get('fill')
-        if fill_value == 'none':
-            color = 0xff000000  # Black color value
-            color = f"{color:08x}"
-            color_data.append(color)
+    else:
+        # As per the SVG specification (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf),
+        # section 11.3 on Fill Properties, If the fill property is not specified for an element, 
+        # its initial or default value is 'black'.
+        color_data.append("ff000000")
 
     if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
         out_cmd.extend('S')
