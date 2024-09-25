@@ -360,6 +360,7 @@ counter = 0
 index = 0
 grad_found = False
 generated_ids = []
+stroke_fill = []
 gradient_mapping = {}  # Mapping from fill name to index
 def generate_id(name):
     global counter
@@ -405,6 +406,8 @@ def parse_color(color_str):
             return (255 << 24) | (r << 16) | (g << 8) | b
     elif color_str in colors:
         return colors[color_str] | 0xFF000000
+    else:
+        return 0xFF000000
 
 def convert_transform(array):
     return ', '.join(', '.join(f'{val:.1f}f' for val in row) for row in array)
@@ -431,6 +434,12 @@ def getSolidColor(fill_data):
                         isSolidColor = True
                         bgr_color = bgr_color_convert(HexColorCode)
     return bgr_color, isSolidColor
+
+def handle_fallback_feature(strokeFeature, fall_back_feature):
+    if fall_back_feature:
+        strokeFeature += f"    }},\n"
+        fall_back_feature = False
+        return strokeFeature, fall_back_feature
 
 hybrid_path_output = f"hybridPath_t {imageName}_hybrid_path[] = {{\n"
 strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
@@ -466,6 +475,7 @@ for redpath in paths:
     g_arg.extend(p_arg)
     out_cmd = []
     out_arg = []
+    fall_back_feature = False
 
     fill_data = "" 
     if 'fill' in attributes[i] and attributes[i]['fill'] != 'none':
@@ -530,16 +540,32 @@ for redpath in paths:
             strokeFeature += f"        .miterlimit = {attributes[i]['stroke-miterlimit']},\n"
         else:
             strokeFeature += f"        .miterlimit = 0,\n"
-        name = attributes[i]['stroke']
-        stroke_color = parse_color(name)
-        if "url" in name:
-            fill_data = (name.replace('url(#', '').replace(')', ''))
+        stroke_attrs = attributes[i]['stroke']
+        stroke_color = parse_color(stroke_attrs)
+        if "url" in stroke_attrs:
+            stroke_attrs = stroke_attrs.split()
+            # Example of expected format for stroke_attrs:
+            # "url(#grad) rgb(192,192,192)", "url(#grad) #070" or "url(#grad) green"
+            if len(stroke_attrs) == 2:
+                # Extract the gradient reference (e.g., "grad") from the first value
+                grad_value = stroke_attrs[0].replace('url(#', '').replace(')', '')
+                # Combine the gradient reference with the second value (color)
+                url_ref_data = f"{grad_value} {stroke_attrs[1]}"
+            else:
+                # If there's only one value (e.g., "url(#grad)"), extract the gradient reference only
+                url_ref_data = (stroke_attrs[0].replace('url(#', '').replace(')', ''))
+            stroke_fill = url_ref_data.split()
+            fill_data = stroke_fill[0]
+            # Enable fallback if both gradient and fallback color are present
+            if len(stroke_fill) == 2:
+                fall_back_feature = True
             fillColor, isSolidColor = getSolidColor(fill_data)
             if isSolidColor == True:
                 strokeFeature += f"        .strokeColor = {hex(fillColor)},\n"
         elif stroke_color:
             bgr_stroke_color = bgr_color_convert(stroke_color)
             strokeFeature += f"        .strokeColor = {hex(bgr_stroke_color)},\n"
+            stroke_fill = [stroke_attrs]
         else:
             print("Error: Fill value not supported", sep="---",file=sys.stderr)
         if 'stroke-linecap' in attributes[i]:
@@ -560,7 +586,8 @@ for redpath in paths:
                 strokeFeature += f"        .linejoin = VG_LITE_JOIN_BEVEL\n"
         else:
             strokeFeature += f"        .linejoin = VG_LITE_JOIN_MITER\n"
-        strokeFeature += f"    }},\n"
+        if fall_back_feature == False:
+            strokeFeature += f"    }},\n"
 
     stroke_value = ""
     if 'stroke' in attributes[i]:
@@ -681,7 +708,19 @@ for redpath in paths:
                     radgrad_to_path_output += f"    NULL,\n"
 
                 gradPresent = True
-
+                if fall_back_feature == True:
+                    strokeFeature, fall_back_feature = handle_fallback_feature(strokeFeature, fall_back_feature)
+            else:
+                if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none" and fall_back_feature == True:
+                    if len(stroke_fill) == 2:
+                        stroke_color = parse_color(stroke_fill[1])
+                    else:
+                        stroke_color = parse_color(stroke_fill[0])
+                    bgr_stroke_color = bgr_color_convert(stroke_color)
+                    strokeFeature = strokeFeature.rstrip('\n') + ',\n'
+                    strokeFeature += f"        .strokeColor = {hex(bgr_stroke_color)}\n"
+                    strokeFeature += f"    }},\n"
+                    fall_back_feature = False
         elif grad['name'] == 'radialGradient':
             grad_name = grad['id']
             if grad_name == fill_data:
@@ -776,6 +815,20 @@ for redpath in paths:
                     radgrad_to_path_output += f"    &{imageName}_radial_gradients_{index},\n"
 
                 gradPresent = True
+                if fall_back_feature == True:
+                    strokeFeature, fall_back_feature = handle_fallback_feature(strokeFeature, fall_back_feature)
+            else:
+                if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none" and fall_back_feature == True:
+                    if len(stroke_fill) == 2:
+                        stroke_color = parse_color(stroke_fill[1])
+                    else:
+                        stroke_color = parse_color(stroke_fill[0])
+                    bgr_stroke_color = bgr_color_convert(stroke_color)
+                    strokeFeature = strokeFeature.rstrip('\n') + ',\n'
+                    strokeFeature += f"        .strokeColor = {hex(bgr_stroke_color)}\n"
+                    strokeFeature += f"    }},\n"
+                    fall_back_feature = False
+
     if 'transform' in attributes[i]:
         attributes[i]['path_transform'] = convert_transform(attributes[i]['path_transform'])
         transform_output += f"{attributes[i]['path_transform']},\n"
