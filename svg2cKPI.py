@@ -618,6 +618,7 @@ for redpath in paths:
                 offset = 0.0
                 hex_color = "0x%x" % 0xff000000
                 if 'stops' in grad and grad['stops']:
+                    fill_path_grad.append("FILL_LINEAR_GRAD")
                     grad_len = len(grad['stops'])
                     for stop in grad['stops']:
                         if 'offset' in stop:
@@ -632,9 +633,11 @@ for redpath in paths:
 
                         stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
                 else:
-                    grad_len = 1
-                    stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }}"
-
+                    # As per the SVG spec (https://www.w3.org/TR/SVG2/paths.html#PathDataMovetoCommands)
+                    # If no stops are defined, then painting shall occur as if 'none' were specified as the paint style.
+                    grad_len = 0
+                    attributes[i]['fill'] = 'none'
+                    fill_path_grad.append("STROKE")
 
                 if num_stops > 0:
                     stop_values_output = stop_values_output[:-2]
@@ -677,7 +680,6 @@ for redpath in paths:
                     lingrad_to_path_output += f"    &{imageName}_linear_gradients_{index},\n"
                     radgrad_to_path_output += f"    NULL,\n"
 
-                fill_path_grad.append("FILL_LINEAR_GRAD")
                 gradPresent = True
 
         elif grad['name'] == 'radialGradient':
@@ -691,6 +693,7 @@ for redpath in paths:
                 offset = 0.0
                 hex_color = "0x%x" % 0xff000000
                 if 'stops' in grad and grad['stops']:
+                    fill_path_grad.append("FILL_RADIAL_GRAD")
                     grad_len = len(grad['stops'])
                     for stop in grad['stops']:
                         if 'offset' in stop:
@@ -705,8 +708,9 @@ for redpath in paths:
 
                         stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
                 else:
-                    grad_len = 1
-                    stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }}"
+                    grad_len = 0
+                    attributes[i]['fill'] = 'none'
+                    fill_path_grad.append("STROKE")                    
 
 
                 if num_stops > 0:
@@ -771,7 +775,6 @@ for redpath in paths:
                     lingrad_to_path_output += f"    NULL,\n"
                     radgrad_to_path_output += f"    &{imageName}_radial_gradients_{index},\n"
 
-                fill_path_grad.append("FILL_RADIAL_GRAD")
                 gradPresent = True
     if 'transform' in attributes[i]:
         attributes[i]['path_transform'] = convert_transform(attributes[i]['path_transform'])
@@ -808,7 +811,7 @@ for i in range(len(paths)):
     # Fill = none, Stroke = none
     # By default, a vector path is considered VG_LITE_DRAW_FILL_PATH.
     if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
-        hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_ZERO }},\n"
+        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
         hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # No fill or Fill = none, Stroke in attribute
     elif (('fill' in attributes[i] and attributes[i]['fill'] == 'none') or ('fill' not in attributes[i])) and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
