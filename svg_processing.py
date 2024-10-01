@@ -41,12 +41,21 @@ from io import StringIO
 from svg_to_paths import *
 
 # SVG elements that are responsible for drawing in output
-_SVG_DRAWABLE_LIST = ['rect', 'circle', 'ellipse', 'line', 'circle','path','polygon','text']
+_SVG_DRAWABLE_LIST = {'rect', 'circle', 'ellipse', 'line', 'circle','path','polygon','text'}
 # SVG elements which are container elements
-_SVG_CONTAINER_LIST = ['svg', 'g']
+_SVG_CONTAINER_LIST = {'svg', 'g'}
 # SVG elements which we should discard
-_SVG_DISCARD_LIST = ['#text','#comment']
+_SVG_DISCARD_LIST = {'#text','#comment'}
 
+# Following attributes are necessary for painting shape elements
+_ATTRIB_NECESSARY_FOR_DRAWING = {'fill', 'fill-rule', 'stroke', 'stroke-width',
+        'stroke-linecap', 'stroke-dasharray', 'stroke-linejoin',
+        'stop-color', 'solid-color'}
+
+# Following attributes support 'currentColor' value
+_ATTRIB_SUPPORTING_CURRENT_COLOR = {'fill-rule', 'stroke', 'fill','solid-color'}
+
+# Mapping of arguments for each VG draw commands.
 _CMD_PARAM_TABLE: dict[str, int] = {
     'M': 2, 'm': 2,
     'L': 2, 'l': 2,
@@ -248,7 +257,7 @@ class NodeProcessor:
             else:
                 cmd = last_command
             
-            num_params = _CMD_PARAM_TABLE.get(cmd,-1)
+            num_params = _CMD_PARAM_TABLE.get(cmd,0)
             i += num_params
             
             if num_params >= 0:
@@ -284,13 +293,12 @@ class NodeProcessor:
         values.append(element.tagName);
 
         if element.tagName == 'svg':
-            # SVG tag has viewbot attribute
+            # SVG tag has viewbox attribute
             keys.append("width")
             values.append(self.svg.width)
 
             keys.append("height")
             values.append(self.svg.height)
-
 
         tx_list = self._get_transform_list(element)
         keys.append("transform")
@@ -309,11 +317,9 @@ class NodeProcessor:
 
         # If current element don't have required property, or it contains 'inherit'
         # traverse parent node and get required properties
-        for key in ['fill', 'fill-rule', 'stroke', 'stroke-width',
-                    'stroke-linecap', 'stroke-dasharray', 'stroke-linejoin',
-                    'stop-color', 'solid-color']:
+        for key in _ATTRIB_NECESSARY_FOR_DRAWING:
             if value := self._get_parent_attribute(element, key):
-                if key in ['fill-rule', 'stroke', 'fill','solid-color'] and attr_dict[key] == 'currentColor':
+                if key in _ATTRIB_SUPPORTING_CURRENT_COLOR and attr_dict[key] == 'currentColor':
                     value = self._get_parent_attribute(element, 'color')
             attr_dict[key] = value
 
