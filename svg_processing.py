@@ -82,7 +82,7 @@ class SVGViewBox(BasicRect):
     """
     A class that allow extraction of viewbox from SVG element
     """
-    def parse(self, root_node, svg_node):
+    def parse(self, svg_node):
         viewbox_value = svg_node.getAttribute("viewBox")
         viewbox_value = viewbox_value.split()
         self.x = float(viewbox_value[0])
@@ -92,6 +92,8 @@ class SVGViewBox(BasicRect):
 
     def transform(self, e):
         attribute = e.get('transform',0)
+        # Get 1st transform values if available
+        attribute = attribute[0]
         attributes = parse_transform(attribute)
         #if len(viewbox_value) == 4:
         if self.width > 0 and self.height > 0:
@@ -105,40 +107,50 @@ class NodeProcessor:
 
     """
 
-    def update_svg_dimension(self, svg_node, vb):        
-        x_str = svg_node.getAttribute("x") if "x" in svg_node.keys else None
-        y_str = svg_node.getAttribute("y") if "y" in svg_node.keys else None
-        width_str = svg_node.getAttribute("width") if "width" in svg_node.keys else None
-        height_str = svg_node.getAttribute("height") if "height" in svg_node.keys else None
+    def update_svg_dimension(self, svg_node, vb):
+
+        keys = list(svg_node.attributes.keys())
+        values = [val.value for val in list(svg_node.attributes.values())]
+        alist = dict(list(zip(keys,values)))
+
+        x_str = alist.get("x", None)
+        y_str = alist.get("y", None)
+        width_str = alist.get("width", None)
+        height_str = alist.get("height", None)
 
         self.svg.x = int(x_str) if x_str is not None else 0
         self.svg.y = int(y_str) if y_str is not None else 0
 
         # if % is specified in width or heigh of SVG element then 
         # use corrosponding viewbox dimension
-        if width_str is not None and width_str.endswith('%'):
-                self.svg.width = int(width_str)
+        self.svg.width = vb.width
+        if (width_str is not None) and (not width_str.endswith('%')):
+            self.svg.width = int(width_str[:-1])
         else:
             self.svg.width = vb.width
 
-        if height_str is not None and height_str.endswith('%'):
-                self.svg.height = int(height_str)
+        if (height_str is not None) and (not height_str.endswith('%')):
+                self.svg.height = int(height_str[:-1])
         else:
             self.svg.height = vb.height
+        # Update overall width, height in svg attribute list        
+        alist["width"] = self.svg.width
+        alist["height"] = self.svg.height
+        self.svg_attributes = alist
 
     def __init__(self, file_name):
         """
         Iterator to traverse SVG tree in depth first order
         """
+        self.svg_id = 0
         self.file_name = file_name
         self.doc = parse(file_name)
 
-        self.root_node=self.doc.getElementsByTagName('svg')
         self.svg_node = self.doc.getElementsByTagName('svg')[0]
         # Get ViewBox of SVG element to find display area for vector drawing
         self.vb = SVGViewBox()
         self.svg = SVGRoot()
-        self.vb.parse(self.root_node, self.svg_node)
+        self.vb.parse(self.svg_node)
         self.update_svg_dimension(self.svg_node, self.vb)
 
         # Arrays that will contains resultant things
@@ -147,13 +159,16 @@ class NodeProcessor:
         self.attribute_dictionary_list = []
 
     def _process_node(self, e):
-        global svg_id
         # Embed unique svg_id in attribute list
-        e.setAttribute("svg_id",f"unique_id{svg_id}")
-        svg_id = svg_id +1
+        e.setAttribute("svg_id",f"unique_id{self.svg_id}")
+        self.svg_id = self.svg_id +1
+
+        strings = ""
+        print(f'{e.tagName}\n')
         
         # Get attribute list
-        alist = [self._make_attrib_dictionary(e)]
+        #alist = [self._make_attrib_dictionary(e)]
+        alist = self._make_attrib_dictionary(e)
         if e.tagName == "path":
             strings = [e['d']]
             strings = ' '.join(strings)
@@ -170,27 +185,30 @@ class NodeProcessor:
                 is_polygon = True 
             else:
                 is_polygon = False 
-            strings = polygon2pathd(e, is_polygon)
+            strings = polygon2pathd(alist, is_polygon)
 
         elif e.tagName in ["circle","ellipse"]:
             if e.tagName == "ellipse":
-                if (e['rx'] == "0") or (e['ry'] == "0"):
+                if (alist['rx'] == "0") or (alist['ry'] == "0"):
                     if 'stroke' in alist:
                         alist['stroke'] = 'none'
             strings = ellipse2pathd(alist)
 
         elif e.tagName in ["rect"]:
-            if (e['width'] == "0") or (e['height'] == "0"):
+            if (alist['width'] == "0") or (alist['height'] == "0"):
                 if 'stroke' in alist:
-                    e['stroke'] = 'none'
-            strings = rect2pathd(e)
+                    alist['stroke'] = 'none'
+            strings = rect2pathd(alist)
 
-        if 'transform' in e:
-            attributes = self.vb.transform(e)
-            e['path_transform'] = attributes
+        if 'transform' in alist:
+            attributes = self.vb.transform(alist)
+            alist['path_transform'] = attributes
 
-        self.d_strings.append(strings);
-        self.attribute_dictionary_list += alist
+        if len(strings) > 0:
+            self.d_strings.append(strings)
+
+        if len(alist) > 0:
+            self.attribute_dictionary_list.append(alist)
 
     def _depth_first(self, root):
         """
@@ -202,7 +220,7 @@ class NodeProcessor:
                 continue
             #print("%s" %(element_name))
             if element_name in _SVG_CONTAINER_LIST:
-                self._process_node(node)
+                # self._process_node(node)
                 self._depth_first(node)
             # Is supported node
             if element_name in _SVG_DRAWABLE_LIST:
@@ -211,7 +229,7 @@ class NodeProcessor:
     def depth_first(self):
         # Get ViewBox of SVG element to find display area for vector drawing
         #vb_x, vb_y = _get_viewbox(doc.getElementsByTagName('svg')[0])
-        self._depth_first(self.root_node)
+        self._depth_first(self.svg_node)
 
     def _get_parent_attribute(self, element, attribute):
         """
@@ -233,7 +251,7 @@ class NodeProcessor:
         # Then create a sequence of transforms that needs to be applied
         path_transforms = []
         parent = element
-        while parent is not None:
+        while parent is not None and parent.nodeType == element.ELEMENT_NODE:
             if parent.hasAttribute("transform"):
                 path_transforms.append(parent.getAttribute("transform"))
             parent=parent.parentNode
@@ -257,7 +275,7 @@ class NodeProcessor:
             else:
                 cmd = last_command
             
-            num_params = _CMD_PARAM_TABLE.get(cmd,0)
+            num_params = 2 #_CMD_PARAM_TABLE.get(cmd,0)
             i += num_params
             
             if num_params >= 0:
@@ -301,10 +319,12 @@ class NodeProcessor:
             values.append(self.svg.height)
 
         tx_list = self._get_transform_list(element)
-        keys.append("transform")
-        values.append(tx_list)
-        keys.append("path_transform")
-        values.append(0)
+        if tx_list:
+            # If transform is available add it into attribute list
+            keys.append("transform")
+            values.append(tx_list)
+            keys.append("path_transform")
+            values.append(0)
 
         attr_dict = dict(list(zip(keys,values)))
 
@@ -319,7 +339,7 @@ class NodeProcessor:
         # traverse parent node and get required properties
         for key in _ATTRIB_NECESSARY_FOR_DRAWING:
             if value := self._get_parent_attribute(element, key):
-                if key in _ATTRIB_SUPPORTING_CURRENT_COLOR and attr_dict[key] == 'currentColor':
+                if key in _ATTRIB_SUPPORTING_CURRENT_COLOR and (element.hasAttribute(key) and attr_dict[key] == 'currentColor'):
                     value = self._get_parent_attribute(element, 'color')
             attr_dict[key] = value
 
@@ -333,5 +353,5 @@ def svg_transform(svg_file_location):
 
     np = NodeProcessor(svg_file_location)
     np.depth_first()
-    return np.d_strings, np.attribute_dictionary_list
+    return np.d_strings, np.attribute_dictionary_list, np.svg_attributes
 
