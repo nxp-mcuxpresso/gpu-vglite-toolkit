@@ -537,7 +537,10 @@ for redpath in paths:
         if 'stroke-miterlimit' in attributes[i]:
             strokeFeature += f"        .miterlimit = {attributes[i]['stroke-miterlimit']},\n"
         else:
-            strokeFeature += f"        .miterlimit = 0,\n"
+            # As per the SVG spec (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf)
+            # section 11.4 on Stroke Properties, If the miterlimit property is not specified for an element, 
+            # its initial or default value is '4'.
+            strokeFeature += f"        .miterlimit = 4,\n"
         stroke_attrs = attributes[i]['stroke']
         stroke_color = parse_color(stroke_attrs)
         if "url" in stroke_attrs:
