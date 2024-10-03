@@ -576,40 +576,41 @@ for redpath in paths:
         else:
             strokeFeature += f"        .dashPatternCnt = 0,\n"
             strokeFeature += f"        .dashPattern = NULL,\n"
-        if 'stroke-dashoffset' in attributes[i]:
-            strokeFeature += f"        .dashPhase = {attributes[i]['stroke-dashoffset']},\n"
-        else:
-            strokeFeature += f"        .dashPhase = 0,\n"
-        if 'stroke-width' in attributes[i]:
-            strokeFeature += f"        .strokeWidth = {attributes[i]['stroke-width']},\n"
-        else:
-            strokeFeature += f"        .strokeWidth = 1,\n"
-        if 'stroke-miterlimit' in attributes[i]:
-            strokeFeature += f"        .miterlimit = {attributes[i]['stroke-miterlimit']},\n"
-        else:
-            # As per the SVG spec (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf)
-            # section 11.4 on Stroke Properties, If the miterlimit property is not specified for an element, 
-            # its initial or default value is '4'.
-            strokeFeature += f"        .miterlimit = 4,\n"
-        stroke_attrs = attributes[i]['stroke']
-        stroke_color = parse_color(stroke_attrs)
-        if "url" in stroke_attrs:
-            stroke_attrs = stroke_attrs.split()
-            # Example of expected format for stroke_attrs:
-            # "url(#grad) rgb(192,192,192)", "url(#grad) #070" or "url(#grad) green"
-            if len(stroke_attrs) == 2:
-                # Extract the gradient reference (e.g., "grad") from the first value
-                grad_value = stroke_attrs[0].replace('url(#', '').replace(')', '')
-                # Combine the gradient reference with the second value (color)
-                url_ref_data = f"{grad_value} {stroke_attrs[1]}"
-            else:
-                # If there's only one value (e.g., "url(#grad)"), extract the gradient reference only
-                url_ref_data = (stroke_attrs[0].replace('url(#', '').replace(')', ''))
-            stroke_fill = url_ref_data.split()
-            fill_data = stroke_fill[0]
-            # Enable fallback if both gradient and fallback color are present
-            if len(stroke_fill) == 2:
-                fall_back_feature = True
+
+        def _map_with_dictionary(key, default_value, alist, const_map):
+            vglite_value = default_value
+            if key in alist and alist[key] != None:
+                svg_value = alist[key]
+                vglite_value = const_map[svg_value]
+            return vglite_value
+
+        def _map_with_constant(key, default_value, alist):
+            vglite_value = default_value
+            if key in alist and alist[key] != None:
+                vglite_value = alist[key]
+            return vglite_value
+
+        _MAP_STROKE_LINECAP= {'butt':'VG_LITE_CAP_BUTT', 'round':'VG_LITE_CAP_ROUND', 'square':'VG_LITE_CAP_SQUARE'}
+        _MAP_STROKE_LINEJOIN= {'miter':'VG_LITE_JOIN_MITER', 'round':'VG_LITE_JOIN_ROUND', 'bevel':'VG_LITE_JOIN_BEVEL'}
+
+        # stroke-dashoffset defaults to zero
+        value = _map_with_constant('stroke-dashoffset', '0', attributes[i])
+        strokeFeature += f"        .dashPhase = {value},\n"
+
+        # stroke-width defaults to one
+        value = _map_with_constant('stroke-width', '1', attributes[i])
+        strokeFeature += f"        .strokeWidth = {value},\n"
+
+        # As per the SVG spec (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf)
+        # section 11.4 on Stroke Properties, If the miterlimit property is not specified for an element,
+        # its initial or default value is '4'.
+        value = _map_with_constant('stroke-miterlimit', '4', attributes[i])
+        strokeFeature += f"        .miterlimit = {value},\n"
+
+        name = attributes[i]['stroke']
+        stroke_color = parse_color(name)
+        if "url" in name:
+            fill_data = (name.replace('url(#', '').replace(')', ''))
             fillColor, isSolidColor = getSolidColor(fill_data)
             if isSolidColor == True:
                 strokeFeature += f"        .strokeColor = {hex(fillColor)},\n"
@@ -619,26 +620,18 @@ for redpath in paths:
             stroke_fill = [stroke_attrs]
         else:
             print("Error: Fill value not supported", sep="---",file=sys.stderr)
-        if 'stroke-linecap' in attributes[i]:
-            if {attributes[i]['stroke-linecap']} == {'butt'}:
-                strokeFeature += f"        .linecap = VG_LITE_CAP_BUTT,\n"
-            elif {attributes[i]['stroke-linecap']} == {'round'}:
-                strokeFeature += f"        .linecap = VG_LITE_CAP_ROUND,\n"
-            elif {attributes[i]['stroke-linecap']} == {'square'}:
-                strokeFeature += f"        .linecap = VG_LITE_CAP_SQUARE,\n"
-        else:
-            strokeFeature += f"        .linecap = VG_LITE_CAP_BUTT,\n"
-        if 'stroke-linejoin' in attributes[i]:
-            if {attributes[i]['stroke-linejoin']} == {'miter'}:
-                strokeFeature += f"        .linejoin = VG_LITE_JOIN_MITER\n"
-            elif {attributes[i]['stroke-linejoin']} == {'round'}:
-                strokeFeature += f"        .linejoin = VG_LITE_JOIN_ROUND\n"
-            elif {attributes[i]['stroke-linejoin']} == {'bevel'}:
-                strokeFeature += f"        .linejoin = VG_LITE_JOIN_BEVEL\n"
-        else:
-            strokeFeature += f"        .linejoin = VG_LITE_JOIN_MITER\n"
-        if fall_back_feature == False:
-            strokeFeature += f"    }},\n"
+
+        # Default stroke-linecap is VG_LITE_CAP_BUTT
+        value = _map_with_dictionary('stroke-linecap', 'VG_LITE_CAP_BUTT', attributes[i], _MAP_STROKE_LINECAP)
+        strokeFeature += f"        .linecap = {value},\n"
+
+        # Default stroke-linejoin is VG_LITE_JOIN_MITER
+        value = _map_with_dictionary('stroke-linejoin', 'VG_LITE_JOIN_MITER', attributes[i], _MAP_STROKE_LINEJOIN)
+        strokeFeature += f"        .linejoin = {value}\n"
+        strokeFeature += f"    }},\n"
+    else:
+        strokeFeature += '\t{\n\t\tNULL,\n\t},\n'
+
 
     stroke_value = ""
     if 'stroke' in attributes[i]:
