@@ -3,12 +3,37 @@
 # Read SVG into a list of path objects and list of dictionaries of attributes 
 # Update: You can now also extract the svg-attributes by setting
 # return_svg_attributes=True, or with the convenience function svg2paths2
-from svgpathtools import svg2paths2
 import sys
 import json
 import re
 import numpy as np
 from pathlib import Path
+import os
+
+def check_command_line_arguments():
+    """
+    Validate input parameters
+    """
+    # If user has not provided input file show usage instructions
+    if len(sys.argv) == 1:
+        print(f'ERROR: Please specify input svg file.', sep="---",file=sys.stderr)
+        print("USAGE: svg2cKPI.py input.svg", sep="---",file=sys.stderr)
+        sys.exit(1)
+
+    # If input file is not readable give user proper error.
+    input_file=sys.argv[1]
+    if os.access(input_file, os.R_OK) == False:
+        print(f'ERROR: {input_file} is not accessible.', sep="---",file=sys.stderr)
+        print("USAGE: svg2cKPI.py input.svg", sep="---",file=sys.stderr)
+        sys.exit(1)
+
+check_command_line_arguments()
+
+try:
+    from svgpathtools import svg2paths2
+except:
+    print("ERROR: Please include \"python module\" svgpathtools in PYTHONPATH", sep="---",file=sys.stderr)
+    sys.exit(1)
 
 input_file=sys.argv[1]
 paths, attributes, svg_attributes = svg2paths2(input_file, return_svg_attributes=True)
