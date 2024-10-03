@@ -528,7 +528,7 @@ for redpath in paths:
     fall_back_feature = False
 
     fill_data = "" 
-    if 'fill' in attributes[i] and attributes[i]['fill'] != 'none':
+    if 'fill' in attributes[i] and attributes[i]['fill'] != None:
         name = attributes[i]['fill']
 
         fill_color = parse_color(name)
@@ -547,15 +547,15 @@ for redpath in paths:
         # its initial or default value is 'black'.
         color_data.append("ff000000")
 
-    if 'stroke' in attributes[i] and attributes[i]['stroke'] != "none":
+    if 'stroke' in attributes[i] and attributes[i]['stroke'] != None:
         out_cmd.extend('S')
         strokePresent = True
         stroke_flag = True
         strokeFeature += f"    {{\n"
         if 'id' in attributes[i]:
             strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
-        if 'stroke-dasharray' in attributes[i]:
-            if attributes[i]['stroke-dasharray'] != "none":
+        if 'stroke-dasharray' in attributes[i] and attributes[i]['stroke-dasharray'] != None:
+            if attributes[i]['stroke-dasharray'] != None:
                 dashPattern = f"static float stroke_dash_pattern_path{i+1}[] = {{\n"
                 dashArray = list({attributes[i]['stroke-dasharray']})[0]
                 #if dash array length is odd then double the length of dash array and double dash array elements
@@ -657,7 +657,7 @@ for redpath in paths:
         strokeFeature += f"        NULL,\n"
         strokeFeature += f"    }},\n"
 
-    if 'style' in attributes[i] and attributes[i]['style'] != 'none':
+    if 'style' in attributes[i] and attributes[i]['style'] != None:
         # fill-paint
         #m = re.match(r'rgb\((\d+),(\d+),(\d+)\)', attributes[i]['fill'])
         m = re.search(r'fill:#(\w+)', attributes[i]['style'])
@@ -886,7 +886,7 @@ for redpath in paths:
     else:
         transform_output += f"1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,\n"
 
-    if 'fill-rule' in attributes[i]:
+    if 'fill-rule' in attributes[i] and attributes[i]['fill-rule'] != None:
         if (attributes[i]['fill-rule'] == "evenodd"):
             fill_rule_output += f"VG_LITE_FILL_EVEN_ODD,\n"
         else:
@@ -912,15 +912,17 @@ for redpath in paths:
 
     i += 1
 for i in range(len(paths)):
+    fill_str = attributes[i]['fill']
+    stroke_str = attributes[i]['stroke']
     # Fill = none, Stroke = none
     # By default, a vector path is considered VG_LITE_DRAW_FILL_PATH.
-    if ('fill' in attributes[i] and attributes[i]['fill'] == 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] == 'none'):
-        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
+    if (fill_str == None and stroke_str == None):
+        hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE,, .pathType = VG_LITE_DRAW_ZERO }},\n"
         hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # No fill or Fill = none, Stroke in attribute
-    elif (('fill' in attributes[i] and attributes[i]['fill'] == 'none') or ('fill' not in attributes[i])) and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
+    elif (fill_str == None and stroke_str != None):
         # Stroke with gradient feature
-        if ('url' in attributes[i]['stroke']):
+        if (is_url_prefix_present(stroke_str)):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
             hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
         # Normal stroke
@@ -928,9 +930,9 @@ for i in range(len(paths)):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
             hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # No stroke or stroke = none, Fill in attribute
-    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and (('stroke' in attributes[i] and attributes[i]['stroke'] == 'none') or ('stroke' not in attributes[i])):
+    elif (fill_str != None and stroke_str == None):
         # Fill with gradient feature
-        if ('url' in attributes[i]['fill']):
+        if (is_url_prefix_present(fill_str)):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
             hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
         # Normal fill
@@ -938,13 +940,13 @@ for i in range(len(paths)):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
             hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
     # Both stroke and fill in attribute
-    elif ('fill' in attributes[i] and attributes[i]['fill'] != 'none') and ('stroke' in attributes[i] and attributes[i]['stroke'] != 'none'):
+    elif (fill_str != None and stroke_str != None):
         # Fill with gradient feature
-        if ('url' in attributes[i]['fill']):
+        if (is_url_prefix_present(fill_str)):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
             hybrid_path_output += f"    {{ .fillType = STROKE, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
         # Stroke with gradient feature
-        elif ('url' in attributes[i]['stroke']):
+        elif (is_url_prefix_present(stroke_str)):
             hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_STROKE_PATH }},\n"
             hybrid_path_output += f"    {{ .fillType = FILL_CONSTANT, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
         # Normal fill and stroke
