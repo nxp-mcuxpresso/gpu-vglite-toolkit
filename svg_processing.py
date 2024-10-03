@@ -313,14 +313,6 @@ class NodeProcessor:
         keys.append("name");
         values.append(element.tagName);
 
-        if element.tagName == 'svg':
-            # SVG tag has viewbox attribute
-            keys.append("width")
-            values.append(self.svg.width)
-
-            keys.append("height")
-            values.append(self.svg.height)
-
         tx_list = self._get_transform_list(element)
         if tx_list:
             # If transform is available add it into attribute list
