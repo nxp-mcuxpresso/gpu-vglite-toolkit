@@ -337,6 +337,8 @@ class NodeProcessor:
             if key not in attr_dict:
                 # Set default as black color
                 value = '#000000'
+            # TODO: Check if we hit this condition
+            attr_dict[key] = value
 
         # If current element don't have required property, or it contains 'inherit'
         # traverse parent node and get required properties
@@ -348,6 +350,25 @@ class NodeProcessor:
 
         return attr_dict
 
+    def _make_gradient_list(self, parent_node):
+        alist=[]
+        for e in self.svg_node.getElementsByTagName(parent_node):
+            grad_dict = self._make_attrib_dictionary(e)
+            stops = [self._make_attrib_dictionary(stop)
+                     for stop in e.getElementsByTagName('stop')]
+            grad_dict['stops'] = stops
+            alist.append(grad_dict)
+        if len(alist) > 0:
+            self.attribute_dictionary_list += alist
+
+    def _process_solidColor(self):
+        solid_color = []
+        for e in self.svg_node.getElementsByTagName('solidColor'):
+            alist = self._make_attrib_dictionary(e)
+            solid_color.append(alist)
+        if len(solid_color) > 0:
+            self.attribute_dictionary_list += solid_color
+
 def svg_transform(svg_file_location):
     # strings are interpreted as file location everything else is treated as
     # file-like object and passed to the xml parser directly
@@ -356,6 +377,9 @@ def svg_transform(svg_file_location):
 
     np = NodeProcessor(svg_file_location)
     np.depth_first()
+    np._make_gradient_list('linearGradient')
+    np._make_gradient_list('radialGradient')
+    np._process_solidColor()
 
     return np.paths, np.attribute_dictionary_list, np.svg_attributes
 
