@@ -300,6 +300,7 @@ print("")
 print("typedef struct path_info {")
 print("    uint32_t  path_length;")
 print("    %s  *path_data;" % data_type)
+print("    uint8_t end_path_flag;" )
 print("} path_info_t;")
 print("")
 print("typedef struct stroke_info {")
@@ -362,6 +363,7 @@ grad_found = False
 generated_ids = []
 stroke_fill = []
 gradient_mapping = {}  # Mapping from fill name to index
+end_path_ctrl = []
 def generate_id(name):
     global counter
     counter += 1
@@ -441,6 +443,12 @@ def handle_fallback_feature(strokeFeature, fall_back_feature):
         fall_back_feature = False
         return strokeFeature, fall_back_feature
 
+def check_for_z_cmd(path_data):
+    if 'z' in path_data or 'Z' in path_data:
+        return 0  # Indicates 'z' command was found
+    else:
+        return 1  # Indicates 'z' command was not found
+
 hybrid_path_output = f"hybridPath_t {imageName}_hybrid_path[] = {{\n"
 strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
 lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
@@ -448,7 +456,6 @@ radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[
 fill_path_grad = []
 transform_output = f"static float {imageName}_transform_matrix[] = {{\n"
 fill_rule_output = f"static vg_lite_fill_t {imageName}_fill_rule[] = {{\n"
-
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
@@ -467,6 +474,16 @@ for redpath in paths:
     print("    {.cmd=VLC_OP_END}")
     print("};")
     print("")
+
+    # In vg_lite_path_t, the add_end is set to zero by default, leading to an extra
+    # path being rendered between the start and end points. Setting it to '1'
+    # to avoid extra path rendering
+    if 'd' in attributes[i]:
+        end_path_ctrl.append(check_for_z_cmd(attributes[i]['d']))
+    elif 'points' in attributes[i]:
+        end_path_ctrl.append(check_for_z_cmd(attributes[i]['points']))
+    else:
+        end_path_ctrl.append(0)
     
     p_cmd,p_arg = path_split(p_cmd_arg)
     if p_cmd is None and p_arg is None:
@@ -963,9 +980,9 @@ print("    .paths_info = {")
 for i, new_id_value in enumerate(generated_ids):
     path_name = "%s_%s_data" % (imageName, new_id_value)
     if i == len(paths) - 1:
-        print("        {.path_length = sizeof(%s), .path_data=(%s*)%s }" % (path_name, data_type, path_name))
+        print("        {.path_length = sizeof(%s), .path_data=(%s*)%s, .end_path_flag=%d }" % (path_name, data_type, path_name, end_path_ctrl[i]))
     else:
-        print("        {.path_length = sizeof(%s), .path_data=(%s*)%s }," % (path_name, data_type, path_name))
+        print("        {.path_length = sizeof(%s), .path_data=(%s*)%s, .end_path_flag=%d }," % (path_name, data_type, path_name, end_path_ctrl[i]))
 print("    },")
 print("};")
 print("")
