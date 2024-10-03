@@ -19,7 +19,7 @@
 #  * Opacitity is not supported
 #  * font support will be available by Dec 2024
 #  * Line with less than 0.5 pixels don't render
-#  * TODO: there are additional limitations discovered during SVGT12 testing
+#  * TODO: Add any additional limitations discovered during SVGT12 testing
 
 # External dependencies
 from __future__ import division, absolute_import, print_function
@@ -342,6 +342,12 @@ class NodeProcessor:
 
         return attr_dict
 
+    def _get_element_id(self, alist):
+        if "id" in alist:
+            return alist["id"]
+        elif "xml:id" in alist:
+            return alist["xml:id"]
+
     def _make_gradient_list(self, parent_node):
         alist=[]
         for e in self.svg_node.getElementsByTagName(parent_node):
@@ -353,13 +359,21 @@ class NodeProcessor:
         if len(alist) > 0:
             self.attribute_dictionary_list += alist
 
-    def _process_solidColor(self):
-        solid_color = []
+    def _make_solidColor_dictionary(self):
+        solid_color = dict()
+        keys = []
+        values = []
+        # NOTE: This tool does not support animation feature.
+        # So, only following is supported
+        #  <solidColor solid-color="constant" solid-opacity="0.7"/>
+        #  VGLite h/w does not support opacity
         for e in self.svg_node.getElementsByTagName('solidColor'):
             alist = self._make_attrib_dictionary(e)
-            solid_color.append(alist)
-        if len(solid_color) > 0:
-            self.attribute_dictionary_list += solid_color
+            key = self._get_element_id(alist)
+            value = alist["solid-color"]
+            keys.append(key)
+            values.append(value)
+        self.solor_colors = dict(list(zip(keys,values)))
 
 def svg_transform(svg_file_location):
     # strings are interpreted as file location everything else is treated as
@@ -371,7 +385,7 @@ def svg_transform(svg_file_location):
     np.depth_first()
     np._make_gradient_list('linearGradient')
     np._make_gradient_list('radialGradient')
-    np._process_solidColor()
+    np._make_solidColor_dictionary()
 
-    return np.paths, np.attribute_dictionary_list, np.svg_attributes
+    return np.paths, np.attribute_dictionary_list, np.svg_attributes, np.solor_colors
 
