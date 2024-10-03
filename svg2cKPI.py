@@ -31,13 +31,13 @@ def check_command_line_arguments():
 check_command_line_arguments()
 
 try:
-    from svgpathtools import svg2paths2
+    from svgpathtools import svg_processing
 except:
     print("ERROR: Please include \"python module\" svgpathtools in PYTHONPATH", sep="---",file=sys.stderr)
     sys.exit(1)
 
 input_file=sys.argv[1]
-paths, attributes, svg_attributes = svg2paths2(input_file, return_svg_attributes=True)
+paths, attributes, svg_attributes = svg_processing.svg_transform(input_file)
 
 if svg_attributes.get('version') != "1.2" or svg_attributes.get('baseProfile') != "tiny":
     print("Error: SVG version must be 1.2 and baseProfile must be tiny.", sep="---",file=sys.stderr)
