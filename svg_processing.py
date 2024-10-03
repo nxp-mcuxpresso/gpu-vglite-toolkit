@@ -40,6 +40,8 @@ from .parser import parse_path
 from io import StringIO
 from svg_to_paths import *
 
+g_counter = 0
+
 # SVG elements that are responsible for drawing in output
 # TODO: Implement 'text' support in next development phase
 _SVG_DRAWABLE_LIST = {'rect', 'circle', 'ellipse', 'line', 'circle','path','polygon'}
@@ -343,21 +345,31 @@ class NodeProcessor:
         return attr_dict
 
     def _get_element_id(self, alist):
+        global g_counter
         if "id" in alist:
             return alist["id"]
         elif "xml:id" in alist:
             return alist["xml:id"]
+        else:
+            alist["id"] = f"svg_id{g_counter}"
+            return alist["id"]
 
     def _make_gradient_list(self, parent_node):
-        alist=[]
+        glist=[]
+        keys = []
+        values = []
         for e in self.svg_node.getElementsByTagName(parent_node):
             grad_dict = self._make_attrib_dictionary(e)
             stops = [self._make_attrib_dictionary(stop)
                      for stop in e.getElementsByTagName('stop')]
             grad_dict['stops'] = stops
-            alist.append(grad_dict)
-        if len(alist) > 0:
-            self.attribute_dictionary_list += alist
+            key = self._get_element_id(grad_dict)
+            keys.append(key)
+            values.append(grad_dict)
+        if parent_node == 'linearGradient':
+            self.linear_gradients = dict(list(zip(keys,values)))
+        elif parent_node == 'radialGradient':
+            self.radial_gradients = dict(list(zip(keys,values)))
 
     def _make_solidColor_dictionary(self):
         solid_color = dict()
@@ -387,5 +399,5 @@ def svg_transform(svg_file_location):
     np._make_gradient_list('radialGradient')
     np._make_solidColor_dictionary()
 
-    return np.paths, np.attribute_dictionary_list, np.svg_attributes, np.solor_colors
+    return np.paths, np.attribute_dictionary_list, np.svg_attributes, np.solor_colors, np.linear_gradients, np.radial_gradients
 
