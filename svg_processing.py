@@ -41,11 +41,12 @@ from io import StringIO
 from svg_to_paths import *
 
 # SVG elements that are responsible for drawing in output
-_SVG_DRAWABLE_LIST = {'rect', 'circle', 'ellipse', 'line', 'circle','path','polygon','text'}
+# TODO: Implement 'text' support in next development phase
+_SVG_DRAWABLE_LIST = {'rect', 'circle', 'ellipse', 'line', 'circle','path','polygon'}
 # SVG elements which are container elements
 _SVG_CONTAINER_LIST = {'svg', 'g'}
 # SVG elements which we should discard
-_SVG_DISCARD_LIST = {'#text','#comment'}
+_SVG_DISCARD_LIST = {'#text','#comment', 'text'}
 
 # Following attributes are necessary for painting shape elements
 _ATTRIB_NECESSARY_FOR_DRAWING = {'fill', 'fill-rule', 'stroke', 'stroke-width',
@@ -221,9 +222,7 @@ class NodeProcessor:
             element_name=node.nodeName
             if element_name in _SVG_DISCARD_LIST:
                 continue
-            #print("%s" %(element_name))
             if element_name in _SVG_CONTAINER_LIST:
-                # self._process_node(node)
                 self._depth_first(node)
             # Is supported node
             if element_name in _SVG_DRAWABLE_LIST:
