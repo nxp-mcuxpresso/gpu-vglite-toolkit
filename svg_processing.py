@@ -158,6 +158,9 @@ class NodeProcessor:
         self.shapeTrans = []
         self.attribute_dictionary_list = []
 
+        # Finally processed paths
+        self.paths = []
+
     def _process_node(self, e):
         # Embed unique svg_id in attribute list
         e.setAttribute("svg_id",f"unique_id{self.svg_id}")
@@ -230,6 +233,7 @@ class NodeProcessor:
         # Get ViewBox of SVG element to find display area for vector drawing
         #vb_x, vb_y = _get_viewbox(doc.getElementsByTagName('svg')[0])
         self._depth_first(self.svg_node)
+        self.paths = [parse_path(d) for d in self.d_strings]
 
     def _get_parent_attribute(self, element, attribute):
         """
@@ -353,5 +357,6 @@ def svg_transform(svg_file_location):
 
     np = NodeProcessor(svg_file_location)
     np.depth_first()
-    return np.d_strings, np.attribute_dictionary_list, np.svg_attributes
+
+    return np.paths, np.attribute_dictionary_list, np.svg_attributes
 
