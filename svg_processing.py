@@ -167,6 +167,13 @@ class NodeProcessor:
         # Finally processed paths
         self.paths = []
 
+    def line2pathd(self, alist):
+        x1 = alist['x1'] if alist['x1'] != None else 0
+        y1 = alist['y1'] if alist['y1'] != None else 0
+        x2 = alist['x2'] if alist['x2'] != None else 0
+        y2 = alist['y2'] if alist['y2'] != None else 0
+        return f'M {x1} {y1} L {x2} {y2}'
+
     def _process_node(self, e):
         # Embed unique svg_id in attribute list
         e.setAttribute("svg_id",f"unique_id{self.svg_id}")
@@ -208,6 +215,8 @@ class NodeProcessor:
                 if 'stroke' in alist:
                     alist['stroke'] = 'none'
             strings = rect2pathd(alist)
+        elif e.tagName in ['line']:
+            strings = self.line2pathd(alist)
 
         if 'transform' in alist:
             attributes = self.vb.transform(alist)
@@ -348,6 +357,14 @@ class NodeProcessor:
                 if key in _ATTRIB_SUPPORTING_CURRENT_COLOR and (element.hasAttribute(key) and attr_dict[key] == 'currentColor'):
                     value = self._get_parent_attribute(element, 'color')
             attr_dict[key] = value
+
+        # for k in ['fill','stroke']:
+        #     # For 'fill' and 'stroke' set value to None
+        #     #    if property value is 'none'
+        #     #    if property value is not specified
+        #     # This will simplify higer level processing of code
+        #     if attr_dict[key] != None and attr_dict[key] == 'none':
+        #         attr_dict[key] = None
 
         return attr_dict
 
