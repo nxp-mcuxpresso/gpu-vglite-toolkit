@@ -280,7 +280,7 @@ class NodeProcessor:
             else:
                 cmd = last_command
             
-            num_params = 2 #_CMD_PARAM_TABLE.get(cmd,0)
+            num_params:int = _CMD_PARAM_TABLE[cmd]
             i += num_params
             
             if num_params >= 0:
