@@ -170,7 +170,7 @@ class NodeProcessor:
         self.svg_id = self.svg_id +1
 
         strings = ""
-        print(f'{e.tagName}\n')
+        #print(f'{e.tagName}\n')
         
         # Get attribute list
         #alist = [self._make_attrib_dictionary(e)]
@@ -363,9 +363,11 @@ class NodeProcessor:
             stops = [self._make_attrib_dictionary(stop)
                      for stop in e.getElementsByTagName('stop')]
             grad_dict['stops'] = stops
-            key = self._get_element_id(grad_dict)
-            keys.append(key)
-            values.append(grad_dict)
+            # Gradients are valid if it has stop points
+            if len(stops) > 0:
+                key = self._get_element_id(grad_dict)
+                keys.append(key)
+                values.append(grad_dict)
         if parent_node == 'linearGradient':
             self.linear_gradients = dict(list(zip(keys,values)))
         elif parent_node == 'radialGradient':
