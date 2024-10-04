@@ -71,6 +71,9 @@ _CMD_PARAM_TABLE: dict[str, int] = {
     'Z': 0, 'z': 0
 }
 
+g_depth = 0
+g_spaces="          "
+
 class BasicRect:
     def __init__(self):
         self.x = -1
@@ -217,18 +220,22 @@ class NodeProcessor:
             self.attribute_dictionary_list.append(alist)
 
     def _depth_first(self, root):
+        global g_depth
         """
         Iterate SVG elements in depth-first order
         """
+        g_depth += 1
         for node in root.childNodes:
             element_name=node.nodeName
             if element_name in _SVG_DISCARD_LIST:
                 continue
+            print(f'{g_spaces[:g_depth*2]} {element_name} {node.getAttribute("id")}')
             if element_name in _SVG_CONTAINER_LIST:
                 self._depth_first(node)
             # Is supported node
             elif element_name in _SVG_DRAWABLE_LIST:
                 self._process_node(node)
+        g_depth -= 1
 
     def depth_first(self):
         # Get ViewBox of SVG element to find display area for vector drawing
