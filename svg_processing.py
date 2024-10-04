@@ -48,7 +48,7 @@ _SVG_DRAWABLE_LIST = {'rect', 'circle', 'ellipse', 'line', 'circle','path','poly
 # SVG elements which are container elements
 _SVG_CONTAINER_LIST = {'svg', 'g'}
 # SVG elements which we should discard
-_SVG_DISCARD_LIST = {'#text','#comment', 'text'}
+_SVG_DISCARD_LIST = {'#text','#comment', 'defs', 'image', 'text'}
 
 # Following attributes are necessary for painting shape elements
 _ATTRIB_NECESSARY_FOR_DRAWING = {'fill', 'fill-rule', 'stroke', 'stroke-width',
@@ -227,7 +227,7 @@ class NodeProcessor:
             if element_name in _SVG_CONTAINER_LIST:
                 self._depth_first(node)
             # Is supported node
-            if element_name in _SVG_DRAWABLE_LIST:
+            elif element_name in _SVG_DRAWABLE_LIST:
                 self._process_node(node)
 
     def depth_first(self):
@@ -280,7 +280,7 @@ class NodeProcessor:
             else:
                 cmd = last_command
             
-            num_params:int = _CMD_PARAM_TABLE[cmd]
+            num_params:int = _CMD_PARAM_TABLE[str(cmd)]
             i += num_params
             
             if num_params >= 0:
