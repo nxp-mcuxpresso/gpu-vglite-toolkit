@@ -71,8 +71,12 @@ _CMD_PARAM_TABLE: dict[str, int] = {
     'Z': 0, 'z': 0
 }
 
-g_depth = 0
-g_spaces="          "
+# Enable code to configure debugging of node-traversal
+_DEBUG=0
+if _DEBUG==1:
+    g_depth = 0
+    g_spaces="          "
+
 
 class BasicRect:
     def __init__(self):
@@ -239,22 +243,27 @@ class NodeProcessor:
         """
         Iterate SVG elements in depth-first order
         """
-        g_depth += 1
+        if _DEBUG==1:
+            g_depth += 1
         for node in root.childNodes:
             element_name=node.nodeName
             if element_name in _SVG_DISCARD_LIST:
                 continue
-            print(f'{g_spaces[:g_depth*2]} {element_name} {node.getAttribute("id")}')
+            if _DEBUG==1:
+                print(f'{g_spaces[:g_depth*2]} {element_name} {node.getAttribute("id")}')
             if element_name in _SVG_CONTAINER_LIST:
                 self._depth_first(node)
             # Is supported node
             elif element_name in _SVG_DRAWABLE_LIST:
                 self._process_node(node)
-        g_depth -= 1
+        if _DEBUG==1:
+            g_depth -= 1
 
     def depth_first(self):
         # Get ViewBox of SVG element to find display area for vector drawing
         #vb_x, vb_y = _get_viewbox(doc.getElementsByTagName('svg')[0])
+        if _DEBUG==1:
+            print(f'Processing {self.file_name}')
         self._depth_first(self.svg_node)
         self.paths = [parse_path(d) for d in self.d_strings]
 
