@@ -476,17 +476,25 @@ def getSolidColor(name):
         bgr_color, isSolidColor = parse_color(solid_colors[name])
     return bgr_color, isSolidColor
 
-def handle_fallback_feature(strokeFeature, fall_back_feature):
-    if fall_back_feature:
-        strokeFeature += f"    }},\n"
-        fall_back_feature = False
-        return strokeFeature, fall_back_feature
-
 def check_for_z_cmd(path_data):
     if 'z' in path_data or 'Z' in path_data:
         return 0  # Indicates 'z' command was found
     else:
         return 1  # Indicates 'z' command was not found
+
+def _get_stop_color(stop):
+    hex_color = "0x%x" % 0xff000000
+    offset = 0.0
+    if 'offset' in stop:
+        offset = convert_offset(stop['offset'])
+    if 'stop-color' in stop:
+        name = stop['stop-color']
+        stop_color, isSolidColor2 = parse_color(name)
+        if stop_color :
+            hex_color = "0x%x" % stop_color
+        else:
+            print("Error: stop color value not supported", sep="---",file=sys.stderr)
+    return hex_color, offset
 
 hybrid_path_output = f"hybridPath_t {imageName}_hybrid_path[] = {{\n"
 strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
@@ -661,25 +669,13 @@ for redpath in paths:
             grad_name = grad["id"]
             x1 = y1 = x2 = y2 = 0.0
             grad_found = True
-            stop_values = []
             stop_values_output = f"static stopValue_t linearGrad_{new_id_value}[] = {{\n"
             num_stops = len(grad['stops'])
-            offset = 0.0
-            hex_color = "0x%x" % 0xff000000
             if 'stops' in grad and grad['stops']:
                 fill_path_grad.append("FILL_LINEAR_GRAD")
                 grad_len = len(grad['stops'])
                 for stop in grad['stops']:
-                    if 'offset' in stop:
-                        offset = convert_offset(stop['offset'])
-                    if 'stop-color' in stop:
-                        name = stop['stop-color']
-                        stop_color, isSolidColor2 = parse_color(name)
-                        if stop_color :
-                            hex_color = "0x%x" % stop_color
-                        else:
-                            print("Error: stop color value not supported", sep="---",file=sys.stderr)
-
+                    hex_color, offset = _get_stop_color(stop)
                     stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
             else:
                 # As per the SVG spec (https://www.w3.org/TR/SVG2/paths.html#PathDataMovetoCommands)
@@ -739,25 +735,13 @@ for redpath in paths:
             grad_name = grad["id"]
             cx = cy = r = fx = fy = 0.0
             grad_found = True
-            stop_values = []
             stop_values_output = f"static stopValue_t radialGrad_{new_id_value}[] = {{\n"
             num_stops = len(grad['stops'])
-            offset = 0.0
-            hex_color = "0x%x" % 0xff000000
             if 'stops' in grad and grad['stops']:
                 fill_path_grad.append("FILL_RADIAL_GRAD")
                 grad_len = len(grad['stops'])
                 for stop in grad['stops']:
-                    if 'offset' in stop:
-                        offset = convert_offset(stop['offset'])
-                    if 'stop-color' in stop:
-                        name = stop['stop-color']
-                        stop_color = parse_color(name)
-                        if stop_color :
-                            hex_color = "0x%x" % stop_color
-                        else:
-                            print("Error: stop color value not supported", sep="---",file=sys.stderr)
-
+                    hex_color, offset = _get_stop_color(stop)
                     stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
             else:
                 grad_len = 0
