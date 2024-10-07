@@ -373,14 +373,6 @@ class NodeProcessor:
                     value = self._get_parent_attribute(element, 'color')
             attr_dict[key] = value
 
-        # for k in ['fill','stroke']:
-        #     # For 'fill' and 'stroke' set value to None
-        #     #    if property value is 'none'
-        #     #    if property value is not specified
-        #     # This will simplify higer level processing of code
-        #     if attr_dict[key] != None and attr_dict[key] == 'none':
-        #         attr_dict[key] = None
-
         return attr_dict
 
     def _get_element_id(self, alist):
@@ -429,11 +421,6 @@ class NodeProcessor:
         self.solor_colors = dict(list(zip(keys,values)))
 
 def svg_transform(svg_file_location):
-    # strings are interpreted as file location everything else is treated as
-    # file-like object and passed to the xml parser directly
-    #from_filepath = isinstance(svg_file_location, str) or isinstance(svg_file_location, FilePathLike)
-    #svg_file_location = os.path.abspath(svg_file_location) if from_filepath else svg_file_location
-
     np = NodeProcessor(svg_file_location)
     np.depth_first()
     np._make_gradient_list('linearGradient')
