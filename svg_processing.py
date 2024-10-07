@@ -373,6 +373,10 @@ class NodeProcessor:
                     value = self._get_parent_attribute(element, 'color')
             attr_dict[key] = value
 
+        # SVGT12 test suite uses xml:id, replicate it by id in dictionary
+        if ('xml:id' in attr_dict) and ('id' not in attr_dict):
+            attr_dict['id'] = attr_dict['xml:id']
+
         return attr_dict
 
     def _get_element_id(self, alist):
