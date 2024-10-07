@@ -222,6 +222,12 @@ class NodeProcessor:
             attributes = self.vb.transform(alist)
             alist['path_transform'] = attributes
 
+        if alist['fill'] == 'none':
+            alist['fill'] = None
+
+        if alist['stroke'] == 'none':
+            alist['stroke'] = None
+
         if len(strings) > 0:
             self.d_strings.append(strings)
 
