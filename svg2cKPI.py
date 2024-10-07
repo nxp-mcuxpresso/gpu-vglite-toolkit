@@ -9,6 +9,7 @@ import re
 import numpy as np
 from pathlib import Path
 import os
+import string
 
 def check_command_line_arguments():
     """
@@ -305,7 +306,14 @@ VGLITE_DATA_TYPES = {
     "float"  :  "VG_LITE_FP32"
 }
 
-imageName = Path(input_file).stem
+imageName_actual = Path(input_file).stem
+# Replace special characters in file-name with underscore
+# C/C++ langulage does not support special characters in variable names.
+special_to_underscore = {c: '_' for c in string.punctuation}
+special_to_underscore[' '] = ''
+mapping_table = str.maketrans(special_to_underscore)
+imageName = imageName_actual.translate(mapping_table)
+
 
 print("#ifndef STATIC_PATH_DEFINES_H")
 print("#define STATIC_PATH_DEFINES_H")
@@ -992,7 +1000,7 @@ print(transform_output)
 
 
 print("static image_info_t %s = {" % imageName)
-print("    .image_name =\"%s\"," % imageName)
+print("    .image_name =\"%s\"," % imageName_actual)
 print("    .image_size = {%d, %d}," % (int(float(svg_attributes['width'])), int(float(svg_attributes['height']))))
 print("    .data_format = %s," % VGLITE_DATA_TYPES[data_type])
 print("    .transform = %s_transform_matrix," % imageName)
