@@ -37,7 +37,7 @@ except:
     sys.exit(1)
 
 input_file=sys.argv[1]
-paths, attributes, svg_attributes = svg_processing.svg_transform(input_file)
+paths, attributes, svg_attributes, solid_colors, linear_gradients, radial_gradients = svg_processing.svg_transform(input_file)
 
 if svg_attributes.get('version') != "1.2" or svg_attributes.get('baseProfile') != "tiny":
     print("Error: SVG version must be 1.2 and baseProfile must be tiny.", sep="---",file=sys.stderr)
@@ -419,6 +419,9 @@ def get_min_max_coordinates(parsed_lines):
     return min_x, max_x, min_y, max_y
 
 def parse_color(color_str):
+    # As per specification default color is black
+    paint_color = 0xff000000
+    isSolidColor = False
     if color_str.startswith('#'):
         if len(color_str) == 4:  # Shorthand hex color like #F60
             color_str = '#' + ''.join([c*2 for c in color_str[1:]])
@@ -428,7 +431,7 @@ def parse_color(color_str):
             r = int(color[0:2], 16)
             g = int(color[2:4], 16)
             b = int(color[4:6], 16)
-            return (255 << 24) | (r << 16) | (g << 8) | b
+            paint_color = ((255 << 24) | (r << 16) | (g << 8) | b)
     elif color_str.startswith('rgb'):
         m = re.match(r'rgb\(\s*([\d\.]+)%?\s*,\s*([\d\.]+)%?\s*,\s*([\d\.]+)%?\s*\)', color_str)
         if m:
@@ -438,11 +441,16 @@ def parse_color(color_str):
                 r, g, b = [int(float(val) * 2.55) for val in (r, g, b)]
             else:
                 r, g, b = map(int, (r, g, b))
-            return (255 << 24) | (r << 16) | (g << 8) | b
+            paint_color = ((255 << 24) | (r << 16) | (g << 8) | b)
     elif color_str in colors:
-        return colors[color_str] | 0xFF000000
+        paint_color = (colors[color_str] | 0xFF000000)
+    elif color_str.startswith('url'):
+            fill_data = (color_str.replace('url(#', '').replace(')', ''))
+            paint_color, isSolidColor = getSolidColor(fill_data)
     else:
-        return 0xFF000000
+        print(f"Error: Fill value \"{color_str}\" not supported", sep="---",file=sys.stderr)
+
+    return paint_color, isSolidColor
 
 def convert_transform(array):
     return ', '.join(', '.join(f'{val:.1f}f' for val in row) for row in array)
@@ -455,19 +463,11 @@ def bgr_color_convert(colorCode):
     bgr_format_color = (opa << 24) | (b << 16) | (g << 8) | r
     return bgr_format_color
 
-def getSolidColor(fill_data):
+def getSolidColor(name):
     isSolidColor = False
-    bgr_color = 0
-    for solid_color in attributes:
-        if solid_color['name'] == 'solidColor':
-            solidColorId = solid_color['id']
-            if solidColorId == fill_data:
-                if 'solid-color' in solid_color:
-                    name = solid_color['solid-color']
-                    HexColorCode = parse_color(name)
-                    if HexColorCode:
-                        isSolidColor = True
-                        bgr_color = bgr_color_convert(HexColorCode)
+    bgr_color = 0xff000000
+    if name in solid_colors:
+        bgr_color, isSolidColor = parse_color(solid_colors[name])
     return bgr_color, isSolidColor
 
 def handle_fallback_feature(strokeFeature, fall_back_feature):
@@ -531,16 +531,9 @@ for redpath in paths:
     if 'fill' in attributes[i] and attributes[i]['fill'] != None:
         name = attributes[i]['fill']
 
-        fill_color = parse_color(name)
-        if "url" in name:
-            fill_data = (name.replace('url(#', '').replace(')', ''))
-            fillColor, isSolidColor = getSolidColor(fill_data)
-            color_data.append("%x" % fillColor)
-        elif fill_color:
-            bgr_fill_color = bgr_color_convert(fill_color)
-            color_data.append("%x" % bgr_fill_color)
-        else:
-            print("Error: Fill value not supported", sep="---",file=sys.stderr)
+        fill_color, isSolidColor2 = parse_color(name)
+        color_data.append("%x" % fill_color)
+
     else:
         # As per the SVG specification (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf),
         # section 11.3 on Fill Properties, If the fill property is not specified for an element, 
@@ -608,18 +601,9 @@ for redpath in paths:
         strokeFeature += f"        .miterlimit = {value},\n"
 
         name = attributes[i]['stroke']
-        stroke_color = parse_color(name)
-        if "url" in name:
-            fill_data = (name.replace('url(#', '').replace(')', ''))
-            fillColor, isSolidColor = getSolidColor(fill_data)
-            if isSolidColor == True:
-                strokeFeature += f"        .strokeColor = {hex(fillColor)},\n"
-        elif stroke_color:
-            bgr_stroke_color = bgr_color_convert(stroke_color)
-            strokeFeature += f"        .strokeColor = {hex(bgr_stroke_color)},\n"
-            stroke_fill = [stroke_attrs]
-        else:
-            print("Error: Fill value not supported", sep="---",file=sys.stderr)
+        stroke_color, isSolidColor2 = parse_color(name)
+        strokeFeature += f"        .strokeColor = {hex(stroke_color)},\n"
+
 
         # Default stroke-linecap is VG_LITE_CAP_BUTT
         value = _map_with_dictionary('stroke-linecap', 'VG_LITE_CAP_BUTT', attributes[i], _MAP_STROKE_LINECAP)
@@ -629,20 +613,6 @@ for redpath in paths:
         value = _map_with_dictionary('stroke-linejoin', 'VG_LITE_JOIN_MITER', attributes[i], _MAP_STROKE_LINEJOIN)
         strokeFeature += f"        .linejoin = {value}\n"
         strokeFeature += f"    }},\n"
-    else:
-        strokeFeature += '\t{\n\t\tNULL,\n\t},\n'
-
-
-    stroke_value = ""
-    if 'stroke' in attributes[i]:
-        stroke_value = attributes[i].get('stroke')
-        if stroke_value == 'none':
-            strokeFeature += f"    {{\n"
-            if 'id' in attributes[i]:
-                strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
-            strokeFeature += f"        NULL,\n"
-            strokeFeature += f"    }},\n"
-
     else:
         strokeFeature += f"    {{\n"
         if 'id' in attributes[i]:
