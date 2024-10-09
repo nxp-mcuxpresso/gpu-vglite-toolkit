@@ -31,7 +31,7 @@ def check_command_line_arguments():
 check_command_line_arguments()
 
 try:
-    from svgpathtools import svg_processing
+    import svg_processing
 except:
     print("ERROR: Please include \"python module\" svgpathtools in PYTHONPATH", sep="---",file=sys.stderr)
     sys.exit(1)

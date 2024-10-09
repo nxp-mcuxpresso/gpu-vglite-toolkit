@@ -35,10 +35,10 @@ except ImportError:
     FilePathLike = str
 
 # Internal dependencies
-from .parser import parse_path
+from svgpathtools.parser import parse_path
 
 from io import StringIO
-from svg_to_paths import *
+from svgpathtools.svg_to_paths import *
 
 g_counter = 0
 
