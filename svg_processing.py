@@ -56,7 +56,7 @@ _ATTRIB_NECESSARY_FOR_DRAWING = {'fill', 'fill-rule', 'stroke', 'stroke-width',
         'stop-color', 'solid-color'}
 
 # Following attributes support 'currentColor' value
-_ATTRIB_SUPPORTING_CURRENT_COLOR = {'fill-rule', 'stroke', 'fill','solid-color'}
+_ATTRIB_SUPPORTING_CURRENT_COLOR = {'fill-rule', 'stroke', 'fill','solid-color','stop-color'}
 
 # Mapping of arguments for each VG draw commands.
 _CMD_PARAM_TABLE: dict[str, int] = {
@@ -346,6 +346,10 @@ class NodeProcessor:
         keys.append("name");
         values.append(element.tagName);
 
+        # Special key 'node' to access SVG node object
+        keys.append("minidom-node")
+        values.append(element)
+
         tx_list = self._get_transform_list(element)
         if tx_list:
             # If transform is available add it into attribute list
@@ -397,6 +401,14 @@ class NodeProcessor:
             grad_dict = self._make_attrib_dictionary(e)
             stops = [self._make_attrib_dictionary(stop)
                      for stop in e.getElementsByTagName('stop')]
+
+            # From SVGT12 Specification
+            # 11.2 Specifying paint describes currentColor interpretation
+            if 'color' in grad_dict:
+                for s in stops:
+                    if s['stop-color'] == 'currentColor':
+                        s['stop-color'] = grad_dict['color']
+
             grad_dict['stops'] = stops
             # Gradients are valid if it has stop points
             if len(stops) > 0:
@@ -431,5 +443,5 @@ def svg_transform(svg_file_location):
     np._make_gradient_list('radialGradient')
     np._make_solidColor_dictionary()
 
-    return np.paths, np.attribute_dictionary_list, np.svg_attributes, np.solor_colors, np.linear_gradients, np.radial_gradients
+    return np.paths, np.attribute_dictionary_list, np.svg_attributes, np.solor_colors, np.linear_gradients, np.radial_gradients, np
 

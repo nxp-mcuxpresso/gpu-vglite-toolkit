@@ -37,7 +37,7 @@ except:
     sys.exit(1)
 
 input_file=sys.argv[1]
-paths, attributes, svg_attributes, solid_colors, linear_gradients, radial_gradients = svg_processing.svg_transform(input_file)
+paths, attributes, svg_attributes, solid_colors, linear_gradients, radial_gradients, g_np = svg_processing.svg_transform(input_file)
 
 if svg_attributes.get('version') != "1.2" or svg_attributes.get('baseProfile') != "tiny":
     print("Error: SVG version must be 1.2 and baseProfile must be tiny.", sep="---",file=sys.stderr)
@@ -453,6 +453,11 @@ def parse_color(color_str):
     elif is_url_prefix_present(color_str):
             fill_data = get_url_id(color_str)
             paint_color, isSolidColor = getSolidColor(fill_data)
+    elif color_str == 'currentColor':
+        # We need to traverse parent node to find color
+        element = g_active_node
+        paint_color_str  = g_np._get_parent_attribute(element, 'color')
+        paint_color, dummy_var = parse_color(paint_color_str)
     else:
         print(f"Error: Fill value \"{color_str}\" not supported", sep="---",file=sys.stderr)
 
@@ -503,6 +508,7 @@ radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[
 fill_path_grad = []
 transform_output = f"static float {imageName}_transform_matrix[] = {{\n"
 fill_rule_output = f"static vg_lite_fill_t {imageName}_fill_rule[] = {{\n"
+g_active_node = None
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
@@ -540,6 +546,9 @@ for redpath in paths:
     out_cmd = []
     out_arg = []
     fall_back_feature = False
+
+    # Present SVG element for which we are creating drawing commands
+    g_active_node = attributes[i]['minidom-node']
 
     fill_data = "" 
     if 'fill' in attributes[i] and attributes[i]['fill'] != None:
