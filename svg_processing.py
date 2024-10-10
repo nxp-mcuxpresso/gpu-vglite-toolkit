@@ -312,7 +312,6 @@ class NodeProcessor:
                 cmd = last_command
             
             num_params:int = _CMD_PARAM_TABLE[str(cmd)]
-            i += num_params
             
             if num_params >= 0:
                 if num_params == 2:
@@ -325,6 +324,7 @@ class NodeProcessor:
                     path_commands.append(f'{cmd} {float(commands[i])} {float(commands[i+1])} {float(commands[i+2])} {float(commands[i+3])}')
                 elif num_params == 0:
                     path_commands.append(f'Z')
+                i += num_params
             else:
                 raise ValueError(f"Unexpected token: {cmd}")
 
