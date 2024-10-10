@@ -190,7 +190,7 @@ class NodeProcessor:
         #alist = [self._make_attrib_dictionary(e)]
         alist = self._make_attrib_dictionary(e)
         if e.tagName == "path":
-            strings = [e['d']]
+            strings = [alist['d']]
             strings = ' '.join(strings)
             strings = strings.replace(',',' ')
             # Add space between values and command
