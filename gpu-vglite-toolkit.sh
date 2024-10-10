@@ -1,4 +1,5 @@
-INPUT_FILE=$1
+
+INPUT_FILE=/opt/BUILD/GTEC/VGLITE/SVGT12/$1
 
 if [ ! -x $PWD/svgpathtools ]; then
     # External public MIT licensed repository
@@ -17,4 +18,5 @@ fi
 sed 's/xml:id/id/g' $INPUT_FILE > svgt12_test.svg
 
 export PYTHONPATH=$PYTHONPATH:$PWD/svgpathtools
-python3 svg2cKPI.py svgt12_test.svg > "../$OUTPUT_FILE"
+python3 svg2cKPI.py svgt12_test.svg > "$OUTPUT_FILE"
+cp -v $OUTPUT_FILE R5_heaader_file/$(basename ${INPUT_FILE})_${OUTPUT_FILE}
