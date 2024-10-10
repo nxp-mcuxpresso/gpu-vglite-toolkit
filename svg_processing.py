@@ -39,6 +39,7 @@ from svgpathtools.parser import parse_path
 
 from io import StringIO
 from svgpathtools.svg_to_paths import *
+from svg_path_transform import *
 
 g_counter = 0
 
