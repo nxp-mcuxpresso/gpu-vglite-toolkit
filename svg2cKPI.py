@@ -241,6 +241,7 @@ print("#endif")
 print("")
 print("")
 
+g_active_node_unique_id = ''
 counter = 0
 index = 0
 grad_found = False
@@ -249,9 +250,19 @@ stroke_fill = []
 gradient_mapping = {}  # Mapping from fill name to index
 end_path_ctrl = []
 def generate_id(name):
-    global counter
+    global counter, g_active_node_unique_id
     counter += 1
-    return f"{name}_{counter}"
+    g_active_node_unique_id = f"{name}_{counter}"
+    return g_active_node_unique_id
+
+def get_current_unique_id():
+    global g_active_node_unique_id
+    return g_active_node_unique_id
+
+def get_input_file_cname():
+    global imageName
+    # Return file name which can be used C variable name
+    return imageName
 
 def convert_offset(offset):
     if offset.endswith('%'):
