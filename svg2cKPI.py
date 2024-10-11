@@ -11,6 +11,10 @@ from pathlib import Path
 import os
 import string
 from svg_colors import *
+from svg_global_callback_context import *
+
+CB = get_global_callback_context()
+from svg_paint_object import PaintObject
 
 def check_command_line_arguments():
     """
@@ -142,7 +146,6 @@ TAGS = {
 g_cmd = []
 g_arg = []
 i = 0
-gradPresent = False
 strokePresent = False
 stroke_flag = False
 color_data = []
@@ -243,11 +246,11 @@ print("")
 
 g_active_node_unique_id = ''
 counter = 0
-index = 0
+g_grad_index = 0
 grad_found = False
 generated_ids = []
 stroke_fill = []
-gradient_mapping = {}  # Mapping from fill name to index
+used_gradients = {}  # Mapping from fill name to index
 end_path_ctrl = []
 def generate_id(name):
     global counter, g_active_node_unique_id
@@ -363,6 +366,68 @@ def _get_stop_color(stop):
             print("Error: stop color value not supported", sep="---",file=sys.stderr)
     return hex_color, offset
 
+def get_used_gradient(key):
+    global g_grad_index
+    return used_gradients[key]
+
+def make_paint_object(svg_color_data):
+    # Note: svg_color_data
+    # svg_color_data can use url prefix (for gradient and solid colors)
+    # svg_color_data can be actual color value as well.
+    global g_grad_index
+
+    po = PaintObject()
+    if is_url_prefix_present(svg_color_data):
+        color_str = get_url_id(svg_color_data)
+        # This can be gradient of solid color
+        if color_str in linear_gradients:
+            grad = linear_gradients[color_str]
+            po.lg.parse(grad, parsed_lines)
+            po.paint_mode = po.lg.get_fill_mode()
+            if po.lg.is_valid():
+                po.lg.set_name(grad["id"])
+                po.lg.set_index(g_grad_index)
+                used_gradients[svg_color_data] = g_grad_index
+                g_grad_index += 1
+
+        elif color_str in radial_gradients:
+            grad = radial_gradients[color_str]
+            po.rg.parse(grad, parsed_lines)
+            po.paint_mode = po.rg.get_fill_mode()
+            if po.rg.is_valid():
+                po.rg.set_name(grad["id"])
+                po.rg.set_index(g_grad_index)
+                used_gradients[svg_color_data] = g_grad_index
+                g_grad_index += 1
+    else:
+        # fill_color is actual ARGB color string
+        fill_color, isSolidColor2 = parse_color(svg_color_data)
+        po.solid.set_color(fill_color)
+
+    return po
+
+def process_painting(color_data):
+    global lingrad_to_path_output, radgrad_to_path_output
+    global grad_found
+
+    po: PaintObject = make_paint_object(color_data)
+
+    if po.lg.is_valid():
+        print(po.lg.to_string())
+        lingrad_to_path_output += f"    &{imageName}_linear_gradients_{po.lg.grad_index},\n"
+        radgrad_to_path_output += f"    NULL,\n"
+        grad_found = True
+    elif po.rg.is_valid():
+        print(po.rg.to_string())
+        lingrad_to_path_output += f"    NULL,\n"
+        radgrad_to_path_output += f"    &{imageName}_radial_gradients_{po.rg.grad_index},\n"
+        grad_found = True
+    else:
+        lingrad_to_path_output += f"    NULL,\n"
+        radgrad_to_path_output += f"    NULL,\n"
+
+    return po
+
 hybrid_path_output = f"hybridPath_t {imageName}_hybrid_path[] = {{\n"
 strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
 lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
@@ -371,6 +436,8 @@ fill_path_grad = []
 transform_output = f"static float {imageName}_transform_matrix[] = {{\n"
 fill_rule_output = f"static vg_lite_fill_t {imageName}_fill_rule[] = {{\n"
 g_active_node = None
+
+update_global_callback_context(parse_color, get_current_unique_id, get_input_file_cname)
 
 for redpath in paths:
     p_cmd_arg = redpath.d()
@@ -412,20 +479,21 @@ for redpath in paths:
     # Present SVG element for which we are creating drawing commands
     g_active_node = attributes[i]['minidom-node']
 
-    fill_data = "" 
-    if 'fill' in attributes[i] and attributes[i]['fill'] != None:
-        fill_data = attributes[i]['fill']
+    fill_str = attributes[i]['fill']
+    stroke_str = attributes[i]['stroke']
+    if fill_str != None:
+        #fill_data = attributes[i]['fill']
 
-        fill_color, isSolidColor2 = parse_color(fill_data)
+        fill_color, isSolidColor2 = parse_color(fill_str)
         color_data.append(fill_color)
 
     else:
         # As per the SVG specification (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf),
         # section 11.3 on Fill Properties, If the fill property is not specified for an element, 
         # its initial or default value is 'black'.
-        color_data.append("0xff000000")
+        color_data.append(SVG_DEFAULT_BLACK_COLOR)
 
-    if 'stroke' in attributes[i] and attributes[i]['stroke'] != None:
+    if stroke_str != None:
         out_cmd.extend('S')
         strokePresent = True
         stroke_flag = True
@@ -485,8 +553,7 @@ for redpath in paths:
         value = _map_with_constant('stroke-miterlimit', '4', attributes[i])
         strokeFeature += f"        .miterlimit = {value},\n"
 
-        name = attributes[i]['stroke']
-        stroke_color, isSolidColor2 = parse_color(name)
+        stroke_color, isSolidColor2 = parse_color(stroke_str)
         strokeFeature += f"        .strokeColor = {stroke_color},\n"
 
 
@@ -531,160 +598,21 @@ for redpath in paths:
             opa = 0xFF
         color_data.append("0x%x" % ((opa << 24) | (b << 16) | (g << 8) | r))
 
-    grad_found = False
-    if is_url_prefix_present(fill_data):
-        fill_data = get_url_id(fill_data)
+    if fill_str != None:
+        fill_po: PaintObject = process_painting(fill_str)
+        if fill_po.paint_mode == None:
+            fill_po.paint_mode = 'FILL_CONSTANT'
+        fill_path_grad.append(fill_po.paint_mode)
 
-        if fill_data in linear_gradients:
-            grad = linear_gradients[fill_data]
-            grad_name = grad["id"]
-            x1 = y1 = x2 = y2 = 0.0
-            grad_found = True
-            stop_values_output = f"static stopValue_t linearGrad_{new_id_value}[] = {{\n"
-            num_stops = len(grad['stops'])
-            if 'stops' in grad and grad['stops']:
-                fill_path_grad.append("FILL_LINEAR_GRAD")
-                grad_len = len(grad['stops'])
-                for stop in grad['stops']:
-                    hex_color, offset = _get_stop_color(stop)
-                    stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
-            else:
-                # As per the SVG spec (https://www.w3.org/TR/SVG2/paths.html#PathDataMovetoCommands)
-                # If no stops are defined, then painting shall occur as if 'none' were specified as the paint style.
-                grad_len = 0
-                attributes[i]['fill'] = None
-                fill_path_grad.append("STROKE")
+    if stroke_str != None:
+        stroke_po: PaintObject = process_painting(stroke_str)
+        if stroke_po.paint_mode == None:
+            stroke_po.paint_mode = 'STROKE'
+        fill_path_grad.append(stroke_po.paint_mode)
 
-
-            if num_stops > 0:
-                stop_values_output = stop_values_output[:-2]
-            stop_values_output += "\n};\n\n"
-            print(stop_values_output)
-            min_x, max_x, min_y, max_y = get_min_max_coordinates(parsed_lines)
-            if 'gradientUnits' in grad:
-                if (grad['gradientUnits'] == 'userSpaceOnUse'):
-                    x1 = float(grad['x1'])
-                    y1 = float(grad['y1'])
-                    x2 = float(grad['x2'])
-                    y2 = float(grad['y2'])
-            if(('gradientUnits' not in grad) or (grad['gradientUnits'] == 'objectBoundingBox')):
-                if 'x1' in grad and 'y1' in grad and 'x2' in grad and 'y2' in grad:
-                    x1 = min_x + (max_x - min_x) * float(grad['x1'])
-                    y1 = min_y + (max_y - min_y) * float(grad['y1'])
-                    x2 = min_x + (max_x - min_x) * float(grad['x2'])
-                    y2 = min_y + (max_y - min_y) * float(grad['y2'])
-                else:
-                    x1 = min_x
-                    y1 = min_y
-                    x2 = max_x
-                    y2 = min_y
-            linear_gradients_output = f"static linearGradient_t {imageName}_linear_gradients_{index}[] = {{\n"
-            linear_gradients_output += f"    {{\n"
-            linear_gradients_output += f"        /*grad id={grad_name}*/\n"
-            linear_gradients_output += f"        .num_stop_points = {grad_len},\n"
-            linear_gradients_output += f"        .linear_gradient = {{{x1}f, {y1}f, {x2}f, {y2}f}},\n"
-            linear_gradients_output += f"        .stops = linearGrad_{new_id_value}\n"
-            linear_gradients_output += f"    }},\n"
-            linear_gradients_output += "\n};\n\n"
-            print(linear_gradients_output)
-            gradient_mapping[fill_data] = index  # Map the gradient name to its index
-            index += 1
-
-            if fill_data in gradient_mapping:
-                lingrad_to_path_output += f"    &{imageName}_linear_gradients_{gradient_mapping[fill_data]},\n"
-                radgrad_to_path_output += f"    NULL,\n"
-            else:
-                lingrad_to_path_output += f"    &{imageName}_linear_gradients_{index},\n"
-                radgrad_to_path_output += f"    NULL,\n"
-
-            gradPresent = True
-            if fall_back_feature == True:
-                strokeFeature, fall_back_feature = handle_fallback_feature(strokeFeature, fall_back_feature)
-
-        elif fill_data in radial_gradients:
-            grad = radial_gradients[fill_data]
-            grad_name = grad["id"]
-            cx = cy = r = fx = fy = 0.0
-            grad_found = True
-            stop_values_output = f"static stopValue_t radialGrad_{new_id_value}[] = {{\n"
-            num_stops = len(grad['stops'])
-            if 'stops' in grad and grad['stops']:
-                fill_path_grad.append("FILL_RADIAL_GRAD")
-                grad_len = len(grad['stops'])
-                for stop in grad['stops']:
-                    hex_color, offset = _get_stop_color(stop)
-                    stop_values_output += f"    {{ .offset = {offset}, .stop_color = {hex_color} }},\n"
-            else:
-                grad_len = 0
-                attributes[i]['fill'] = None
-                fill_path_grad.append("STROKE")
-
-
-            if num_stops > 0:
-                stop_values_output = stop_values_output[:-2]
-            stop_values_output += "\n};\n\n"
-            print(stop_values_output)
-            min_x, max_x, min_y, max_y = get_min_max_coordinates(parsed_lines)
-            if 'gradientUnits' in grad:
-                if (grad['gradientUnits'] == 'userSpaceOnUse'):
-                    #All gradient parameters are available
-                    if all(key in grad for key in ('cx', 'cy', 'r')):
-                        cx = float(grad['cx'])
-                        cy = float(grad['cy'])
-                        r = float(grad['r'])
-                        fx = float(grad['cx'])
-                        fy = float(grad['cy'])
-                    #All gradient parameters are available
-                    else:
-                        cx = float(grad['cx'])
-                        cy = float(grad['cy'])
-                        r = float(grad['r'])
-                        fx = float(grad['fx'])
-                        fy = float(grad['fy'])
-            if(('gradientUnits' not in grad) or (grad['gradientUnits'] == 'objectBoundingBox')):
-                #All gradient parameters are available
-                if all(key in grad for key in ('cx', 'cy', 'r', 'fx', 'fy')):
-                    cx = min_x + (max_x - min_x) * convert_offset(grad['cx'])
-                    cy = min_y + (max_y - min_y) * convert_offset(grad['cy'])
-                    r = min(min_x + (max_x - min_x) * convert_offset(grad['r']), min_y + (max_y - min_y) * convert_offset(grad['r']))
-                    fx = min_x + (max_x - min_x) * convert_offset(grad['fx'])
-                    fy = min_y + (max_y - min_y) * convert_offset(grad['fy'])
-                #cx, cy and r gradient parameters are available but fx and fy is missing
-                if all(key in grad for key in ('cx', 'cy', 'r')):
-                    cx = min_x + (max_x - min_x) * convert_offset(grad['cx'])
-                    cy = min_y + (max_y - min_y) * convert_offset(grad['cy'])
-                    r = min(min_x + (max_x - min_x) * convert_offset(grad['r']), min_y + (max_y - min_y) * convert_offset(grad['r']))
-                    fx = cx
-                    fy = cy
-                #cx, cy, r, fx and fy gradient parameters are missing
-                else:
-                    cx = min_x + (max_x - min_x) * 0.5
-                    cy = min_y + (max_y - min_y) * 0.5
-                    r  = min(cx,cy)
-                    fx = min_x + (max_x - min_x) * 0.5
-                    fy = min_y + (max_y - min_y) * 0.5
-            radial_gradients_output = f"static radialGradient_t {imageName}_radial_gradients_{index}[] = {{\n"
-            radial_gradients_output += f"    {{\n"
-            radial_gradients_output += f"        /*grad id={grad_name}*/\n"
-            radial_gradients_output += f"        .num_stop_points = {grad_len},\n"
-            radial_gradients_output += f"        .radial_gradient = {{{cx}f, {cy}f, {r}f, {fx}f, {fy}f}},\n"
-            radial_gradients_output += f"        .stops = radialGrad_{new_id_value}\n"
-            radial_gradients_output += f"    }},\n"
-            radial_gradients_output += "\n};\n\n"
-            print(radial_gradients_output)
-            gradient_mapping[fill_data] = index  # Map the gradient name to its index
-            index += 1
-
-            if fill_data in gradient_mapping:
-                lingrad_to_path_output += f"    NULL,\n"
-                radgrad_to_path_output += f"    &{imageName}_radial_gradients_{gradient_mapping[fill_data]},\n"
-            else:
-                lingrad_to_path_output += f"    NULL,\n"
-                radgrad_to_path_output += f"    &{imageName}_radial_gradients_{index},\n"
-
-            gradPresent = True
-            if fall_back_feature == True:
-                strokeFeature, fall_back_feature = handle_fallback_feature(strokeFeature, fall_back_feature)
+    # TODO: handle fallback mode
+    # if fall_back_feature == True:
+    #     strokeFeature, fall_back_feature = handle_fallback_feature(strokeFeature, fall_back_feature)
 
     if 'transform' in attributes[i]:
         attributes[i]['path_transform'] = convert_transform(attributes[i]['path_transform'])
@@ -700,15 +628,6 @@ for redpath in paths:
     else:
         fill_rule_output += f"VG_LITE_FILL_EVEN_ODD,\n"
 
-    if not grad_found:
-        lingrad_to_path_output += f"    NULL,\n"
-        radgrad_to_path_output += f"    NULL,\n"
-        if stroke_flag == True:
-            fill_path_grad.append("STROKE")
-            stroke_flag = False
-        else:
-            fill_path_grad.append("FILL_CONSTANT")
-        index += 1
 
     # add the Path
     out_arg.extend([len(p_arg)])
@@ -716,10 +635,6 @@ for redpath in paths:
     out_cmd.extend(p_cmd)
     out_cmd.extend('E')
 
-    i += 1
-for i in range(len(paths)):
-    fill_str = attributes[i]['fill']
-    stroke_str = attributes[i]['stroke']
     # Fill = none, Stroke = none
     # By default, a vector path is considered VG_LITE_DRAW_FILL_PATH.
     if (fill_str == None and stroke_str == None):
@@ -762,6 +677,7 @@ for i in range(len(paths)):
     else:
         hybrid_path_output += f"    {{ .fillType = {fill_path_grad[i]}, .pathType = VG_LITE_DRAW_FILL_PATH }},\n"
         hybrid_path_output += f"    {{ .fillType = NO_FILL_MODE, .pathType = VG_LITE_DRAW_ZERO }},\n"
+    i += 1
 
 if lingrad_to_path_output.endswith(",\n"):
     lingrad_to_path_output = lingrad_to_path_output[:-2]
@@ -786,7 +702,7 @@ if strokePresent == True:
     print(strokeFeature)
 print(hybrid_path_output)
 
-if gradPresent == True:
+if len(used_gradients) > 0:
     print(lingrad_to_path_output)
     print(radgrad_to_path_output)
 
@@ -794,7 +710,7 @@ print(fill_rule_output)
 
 print ("static gradient_mode_t %s_gradient_info = {" % imageName)
 
-if gradPresent == True:
+if len(used_gradients) > 0:
     print(f"    .linearGrads = {imageName}_lingrad_to_path,")
     print(f"    .radialGrads = {imageName}_radgrad_to_path,")
 else:
