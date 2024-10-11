@@ -2,7 +2,9 @@ import sys
 
 # Import application specific routines
 from svg_colors import SVG_DEFAULT_BLACK_COLOR
-from svg2cKPI import get_current_unique_id, parse_color, get_input_file_cname
+from svg_global_callback_context import *
+
+CB = get_global_callback_context()
 
 def get_min_max_coordinates(parsed_lines):
     min_x = min(coord[0] for coord in parsed_lines)
@@ -16,7 +18,7 @@ class SolidColor:
         self.set_color(color_str)    
 
     def set_color(self, color_str):
-        self.fill_color = color_str
+        self.color = color_str
     
 class GradientStopPoints:
     def __init__(self, offset, hex_color_str):
@@ -44,13 +46,15 @@ class GradientBase:
         return float(offset)
 
     def _get_stop_color(self, stop):
+        global CB
+
         hex_color = "0x%x" % 0xff000000
         offset = 0.0
         if 'offset' in stop:
             offset = self.convert_offset(stop['offset'])
         if 'stop-color' in stop:
             name = stop['stop-color']
-            stop_color, isSolidColor2 = parse_color(name)
+            stop_color, isSolidColor2 = CB.parse_color(name)
             if stop_color :
                 hex_color = stop_color
             else:
@@ -72,10 +76,13 @@ class GradientBase:
         # local variables
         str_buf = ''
         
-        str_buf = f"static stopValue_t ${prefix}_{get_current_unique_id()}[] = {{\n"
+        str_buf = f"static stopValue_t {prefix}[] = {{\n"
         for s in stops:
                 str_buf += f"    {{ .offset = {s.offset}, .stop_color = {s.color_str} }},\n"
-        str_buf += "\n};\n\n"
+        # C compiler gives error if there is comma (,) in array
+        # So from str_buf we are removing ,\n
+        str_buf = str_buf[:-2]
+        str_buf += "\n};\n\n\n"
         return str_buf
 
 class LinearGradient(GradientBase):
@@ -84,12 +91,17 @@ class LinearGradient(GradientBase):
     and prepare VGLite draw commands
     """
     def __init__(self):
+        self._valid:bool = False
+        self.name = None
+        self.grad_index = -1
         self.stops: list[GradientStopPoints] = []
 
     def get_fill_mode(self):
         if len(self.stops) > 0:
             return "FILL_LINEAR_GRAD"
         else:
+            # As per the SVG spec (https://www.w3.org/TR/SVG2/paths.html#PathDataMovetoCommands)
+            # If no stops are defined, then painting shall occur as if 'none' were specified as the paint style.
             return "STROKE"
     
     def parse(self, alist, data_str):
@@ -115,21 +127,24 @@ class LinearGradient(GradientBase):
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
-    
+        # Finally mark gradient as valid
+        self._valid = True
+
     def to_string(self):
         # local variables
         str_buf = ''
         if len(self.stops) == 0 or self.is_valid == False:
             return str_buf
 
-        str_buf += self._stops_to_string("linearGrad",self.stops)
+        prefix = f"linearGrad_{CB.get_current_unique_id()}"
+        str_buf = self._stops_to_string(prefix,self.stops)
 
-        str_buf += f"static linearGradient_t {get_input_file_cname()}_linear_gradients_{self.grad_index}[] = {{\n"
+        str_buf += f"static linearGradient_t {CB.get_input_file_cname()}_linear_gradients_{self.grad_index}[] = {{\n"
         str_buf += f"    {{\n"
         str_buf += f"        /*grad id={self.name}*/\n"
         str_buf += f"        .num_stop_points = {len(self.stops)},\n"
         str_buf += f"        .linear_gradient = {{{self.x1}f, {self.y1}f, {self.x2}f, {self.y2}f}},\n"
-        str_buf += f"        .stops = linearGrad_{get_current_unique_id()}\n"
+        str_buf += f"        .stops = {prefix}\n"
         str_buf += f"    }},\n"
         str_buf += "\n};\n\n"
         return str_buf
@@ -141,6 +156,9 @@ class RadialGradient(GradientBase):
     and prepare VGLite draw commands
     """
     def __init__(self):
+        self._valid:bool = False
+        self.name = None
+        self.grad_index = -1
         self.stops: list[GradientStopPoints] = []
         self.cx = 0.0
         self.cy = 0.0
@@ -158,7 +176,6 @@ class RadialGradient(GradientBase):
     def parse(self, alist, data_str):        
         self.stops = self._parse_gradient_stop_points(alist)
         if len(self.stops) == 0:
-            self._valid = False
             return
 
         grad_unit_str = alist['gradientUnits']
@@ -193,28 +210,37 @@ class RadialGradient(GradientBase):
                 fx = min_x + (max_x - min_x) * 0.5
                 fy = min_y + (max_y - min_y) * 0.5
 
+        self.cx = cx
+        self.cy = cy
+        self.r = r
+        self.fx = fx
+        self.fy = fy
+        # Finally mark gradient as valid
+        self._valid = True
+
+
     def to_string(self):
         # local variables
         str_buf = ''
         if len(self.stops) == 0 or self.is_valid == False:
             return str_buf
 
-        str_buf += self._stops_to_string("radialGrad",self.stops)
+        prefix = f"radialGrad_{CB.get_current_unique_id()}"
+        str_buf = self._stops_to_string(prefix,self.stops)
 
-        str_buf = f"static radialGradient_t {get_input_file_cname()}_radial_gradients_{self.grad_index}[] = {{\n"
+        str_buf += f"static radialGradient_t {CB.get_input_file_cname()}_radial_gradients_{self.grad_index}[] = {{\n"
         str_buf += f"    {{\n"
         str_buf += f"        /*grad id={self.name}*/\n"
         str_buf += f"        .num_stop_points = {len(self.stops)},\n"
         str_buf += f"        .radial_gradient = {{{self.cx}f, {self.cy}f, {self.r}f, {self.fx}f, {self.fy}f}},\n"
-        str_buf += f"        .stops = radialGrad_{get_current_unique_id()}\n"
+        str_buf += f"        .stops = {prefix}\n"
         str_buf += f"    }},\n"
         str_buf += "\n};\n\n"
-        print(str_buf)
+        return str_buf
 
 class PaintObject:
     def __init__(self):
         self.paint_mode = None
-        self.is_valid = False
         self.lg = LinearGradient()
         self.rg = RadialGradient()
         self.solid = SolidColor(SVG_DEFAULT_BLACK_COLOR)
