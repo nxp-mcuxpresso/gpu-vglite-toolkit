@@ -123,6 +123,11 @@ class LinearGradient(GradientBase):
             y1 = min_y + (((max_y - min_y) * float(alist['y1'])) if 'y1' in alist else 0 )
             x2 = min_x + (((max_x - min_x) * float(alist['x2'])) if 'x2' in alist else 0 )
             y2 = min_y + (((max_y - min_y) * float(alist['y2'])) if 'y2' in alist else 0 )
+        else:
+            x1 = min_x
+            y1 = min_y
+            x2 = max_x
+            y2 = max_y
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2

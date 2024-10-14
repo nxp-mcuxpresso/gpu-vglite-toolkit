@@ -411,6 +411,9 @@ class NodeProcessor:
                         s['stop-color'] = grad_dict['color']
 
             grad_dict['stops'] = stops
+            if "gradientUnits" not in grad_dict:
+                # Ensure we have dummy strings to simplify checks in main svg_paint_object
+                grad_dict['gradientUnits'] = None
             # Gradients are valid if it has stop points
             if len(stops) > 0:
                 key = self._get_element_id(grad_dict)
