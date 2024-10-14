@@ -40,6 +40,7 @@ from svgpathtools.parser import parse_path
 from io import StringIO
 from svgpathtools.svg_to_paths import *
 from svg_path_transform import *
+from svg_colors import *
 
 g_counter = 0
 
@@ -366,9 +367,8 @@ class NodeProcessor:
         for key in ['solid-color' , 'stop-color']:
             if key not in attr_dict:
                 # Set default as black color
-                value = '#000000'
-            # TODO: Check if we hit this condition
-            attr_dict[key] = value
+                value = SVG_DEFAULT_BLACK_COLOR
+                attr_dict[key] = value
 
         # If current element don't have required property, or it contains 'inherit'
         # traverse parent node and get required properties
