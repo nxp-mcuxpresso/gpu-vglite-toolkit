@@ -293,6 +293,13 @@ def parse_color(color_str):
     # As per specification default color is black
     paint_color = SVG_DEFAULT_BLACK_COLOR
     isSolidColor = False
+
+    if color_str == None:
+        # As per the SVG specification (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf),
+        # section 11.3 on Fill Properties, If the fill property is not specified for an element, 
+        # its initial or default value is 'black'.
+        return SVG_DEFAULT_BLACK_COLOR, isSolidColor
+
     if color_str.startswith('#'):
         if len(color_str) == 4:  # Shorthand hex color like #F60
             color_str = '#' + ''.join([c*2 for c in color_str[1:]])
@@ -481,17 +488,8 @@ for redpath in paths:
 
     fill_str = attributes[i]['fill']
     stroke_str = attributes[i]['stroke']
-    if fill_str != None:
-        #fill_data = attributes[i]['fill']
-
-        fill_color, isSolidColor2 = parse_color(fill_str)
-        color_data.append(fill_color)
-
-    else:
-        # As per the SVG specification (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf),
-        # section 11.3 on Fill Properties, If the fill property is not specified for an element, 
-        # its initial or default value is 'black'.
-        color_data.append(SVG_DEFAULT_BLACK_COLOR)
+    fill_color, isSolidColor2 = parse_color(fill_str)
+    color_data.append(fill_color)
 
     if stroke_str != None:
         out_cmd.extend('S')
