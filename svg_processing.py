@@ -234,6 +234,12 @@ class NodeProcessor:
         if alist['stroke'] == 'none':
             alist['stroke'] = None
 
+        if alist['stroke'] == None and alist['fill'] == None:
+            # e.g. refer to shapes-intro-01-t.svg with zero-width/height cases (e.g. Zero-width-stroked-rect)
+            # Since there is no drawing operation, we can safely discard this path
+            # it is not going to result in any rendering on screen.
+            return
+
         if len(strings) > 0:
             self.d_strings.append(strings)
 
