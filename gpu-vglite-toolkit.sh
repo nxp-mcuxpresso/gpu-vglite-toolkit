@@ -17,6 +17,12 @@ fi
 
 sed 's/xml:id/id/g' $INPUT_FILE > svgt12_test.svg
 
+echo ${INPUT_FILE}
+OUT_NAME=$(echo $(basename ${INPUT_FILE}) | sed 's/\.svg/\.h/')
+
+OUT_ERR=$(echo $(basename ${INPUT_FILE}) | sed 's/\.svg/\.err/')
 export PYTHONPATH=$PYTHONPATH:$PWD/svgpathtools
-python3 svg2cKPI.py svgt12_test.svg > "$OUTPUT_FILE"
-cp -v $OUTPUT_FILE R5_heaader_file/$(basename ${INPUT_FILE})_${OUTPUT_FILE}
+python3 svg2cKPI.py svgt12_test.svg > "$OUTPUT_FILE" 2>${OUT_ERR}
+cp -v ${OUTPUT_FILE} /opt/BUILD/GTEC/VGLITE_FINAL/MCUSDK/source/${OUTPTU_FILE}
+mv -fv ${OUTPUT_FILE} R5_header_file/${OUT_NAME}
+mv -fv ${OUT_ERR} R5_header_file/${OUT_ERR}
