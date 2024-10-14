@@ -174,10 +174,10 @@ class NodeProcessor:
         self.paths = []
 
     def line2pathd(self, alist):
-        x1 = alist['x1'] if alist['x1'] != None else 0
-        y1 = alist['y1'] if alist['y1'] != None else 0
-        x2 = alist['x2'] if alist['x2'] != None else 0
-        y2 = alist['y2'] if alist['y2'] != None else 0
+        x1 = alist.get('x1', 0)
+        y1 = alist.get('y1', 0)
+        x2 = alist.get('x2', 0)
+        y2 = alist.get('y2', 0)
         return f'M {x1} {y1} L {x2} {y2}'
 
     def _process_node(self, e):
