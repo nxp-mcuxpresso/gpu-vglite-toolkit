@@ -118,11 +118,11 @@ class LinearGradient(GradientBase):
             y1 = float(alist['y1'])
             x2 = float(alist['x2'])
             y2 = float(alist['y2'])
-        elif grad_unit_str == 'objectBoundingBox':
-            x1 = min_x + (((max_x - min_x) * float(alist['x1'])) if 'x1' in alist else 0 )
-            y1 = min_y + (((max_y - min_y) * float(alist['y1'])) if 'y1' in alist else 0 )
-            x2 = min_x + (((max_x - min_x) * float(alist['x2'])) if 'x2' in alist else 0 )
-            y2 = min_y + (((max_y - min_y) * float(alist['y2'])) if 'y2' in alist else 0 )
+        elif grad_unit_str == 'objectBoundingBox' and all(key in alist for key in ('x1', 'y1', 'x2', 'y2')):
+            x1 = min_x + (((max_x - min_x) * float(alist['x1'])))
+            y1 = min_y + (((max_y - min_y) * float(alist['y1'])))
+            x2 = min_x + (((max_x - min_x) * float(alist['x2'])))
+            y2 = min_y + (((max_y - min_y) * float(alist['y2'])))
         else:
             x1 = min_x
             y1 = min_y
