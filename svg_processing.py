@@ -137,12 +137,12 @@ class NodeProcessor:
         # use corrosponding viewbox dimension
         self.svg.width = vb.width
         if (width_str is not None) and (not width_str.endswith('%')):
-            self.svg.width = int(width_str[:-1])
+            self.svg.width = float(width_str)
         else:
             self.svg.width = vb.width
 
         if (height_str is not None) and (not height_str.endswith('%')):
-                self.svg.height = int(height_str[:-1])
+                self.svg.height = float(height_str)
         else:
             self.svg.height = vb.height
         # Update overall width, height in svg attribute list        
@@ -343,6 +343,27 @@ class NodeProcessor:
 
         return ' '.join(path_commands)
 
+    def _parse_style(self, alist, style_str):
+        if style_str == None:
+            return
+
+        # style properties examples
+        #    style="fill:#cdcccb;fill-opacity:1;fill-rule:evenodd;stroke:none"
+        #    style="fill: rgb(55, 55, 55); fill-opacity: 1; fill-rule: evenodd; stroke: none;"
+        #    style="fill: rgb(61, 109, 190); fill-opacity: 1; fill-rule: evenodd; stroke: none;"
+        # Properties are seperated by ';'
+        properties=style_str.split(';')
+        for p in properties:
+            # key,value pair is seperated by ':'
+            kv = p.split(':')
+            if len(kv) != 2:
+                continue
+            if alist.get(kv[0], None) != None:
+                # Warn user when SVG specifies style and element attribute both for same property
+                print(f"WARNING: style property {kv[0]}={kv[1]} overrides element attribute {kv[0]}={alist[kv[0]]}",file=sys.stderr)
+            # Add parsed style properties in attribute list
+            alist[kv[0]] = kv[1].strip()
+
     def _make_attrib_dictionary(self, element):
         """
         Parse Element attributes and prepare a dictionary
@@ -387,6 +408,10 @@ class NodeProcessor:
         # SVGT12 test suite uses xml:id, replicate it by id in dictionary
         if ('xml:id' in attr_dict) and ('id' not in attr_dict):
             attr_dict['id'] = attr_dict['xml:id']
+
+        if 'style' in attr_dict:
+            # Parse style attribute if 'fill' and 'stroke' are absent
+            self._parse_style(attr_dict, attr_dict['style'])
 
         return attr_dict
 
