@@ -29,6 +29,7 @@ import numpy as np
 import os
 from io import StringIO
 import re
+import string
 try:
     from os import PathLike as FilePathLike
 except ImportError:
@@ -180,6 +181,12 @@ class NodeProcessor:
         y2 = alist.get('y2', 0)
         return f'M {x1} {y1} L {x2} {y2}'
 
+    def is_url_prefix_present(self, color_str):
+        return color_str.startswith("url")
+
+    def get_url_id(self, color_str):
+        return color_str.replace('url(#', '').replace(')', '')
+
     def _process_node(self, e):
         # Embed unique svg_id in attribute list
         e.setAttribute("svg_id",f"unique_id{self.svg_id}")
@@ -230,6 +237,22 @@ class NodeProcessor:
 
         if alist['fill'] == 'none':
             alist['fill'] = None
+
+        fill_str = alist['fill']
+        if fill_str != None and self.is_url_prefix_present(fill_str):
+            # When fill is referring to colur using URL,
+            # paint method(linear/radial/solid-fill) must be valid.
+            color_name = color_str = self.get_url_id(fill_str)
+            color_is_valid = False
+            if color_name in self.linear_gradients:
+                color_is_valid += 1
+            if color_name in self.radial_gradients:
+                color_is_valid += 1
+            if color_name in self.solor_colors:
+                color_is_valid += 1
+            if color_is_valid == False:
+                # Discard this fill value since no valid paiting color/method exists
+                alist['fill'] = None
 
         if alist['stroke'] == 'none':
             alist['stroke'] = None
@@ -473,10 +496,10 @@ class NodeProcessor:
 
 def svg_transform(svg_file_location):
     np = NodeProcessor(svg_file_location)
-    np.depth_first()
     np._make_gradient_list('linearGradient')
     np._make_gradient_list('radialGradient')
     np._make_solidColor_dictionary()
+    np.depth_first()
 
     return np.paths, np.attribute_dictionary_list, np.svg_attributes, np.solor_colors, np.linear_gradients, np.radial_gradients, np
 
