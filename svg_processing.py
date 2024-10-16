@@ -47,7 +47,7 @@ g_counter = 0
 
 # SVG elements that are responsible for drawing in output
 # TODO: Implement 'text' support in next development phase
-_SVG_DRAWABLE_LIST = {'rect', 'circle', 'ellipse', 'line', 'circle','path','polygon'}
+_SVG_DRAWABLE_LIST = {'rect', 'circle', 'ellipse', 'line', 'circle','path','polygon', 'polyline'}
 # SVG elements which are container elements
 _SVG_CONTAINER_LIST = {'svg', 'g'}
 # SVG elements which we should discard
