@@ -127,7 +127,9 @@ class LinearGradient(GradientBase):
             x1 = min_x
             y1 = min_y
             x2 = max_x
-            y2 = max_y
+            # https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf
+            # section: 11.16.1 Linear gradients
+            y2 = min_y
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
