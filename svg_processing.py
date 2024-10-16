@@ -238,6 +238,9 @@ class NodeProcessor:
         if alist['fill'] == 'none':
             alist['fill'] = None
 
+        if alist['stroke-dasharray'] == 'none':
+            alist['stroke-dasharray'] = None
+
         fill_str = alist['fill']
         if fill_str != None and self.is_url_prefix_present(fill_str):
             # When fill is referring to colur using URL,

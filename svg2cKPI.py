@@ -497,26 +497,23 @@ for redpath in paths:
         stroke_flag = True
         strokeFeature += f"    {{\n"
         if 'id' in attributes[i]:
-            strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
-        if 'stroke-dasharray' in attributes[i] and attributes[i]['stroke-dasharray'] != None:
-            if attributes[i]['stroke-dasharray'] != None:
-                dashPattern = f"static float stroke_dash_pattern_path{i+1}[] = {{\n"
-                dashArray = list({attributes[i]['stroke-dasharray']})[0]
-                #if dash array length is odd then double the length of dash array and double dash array elements
-                if (len(dashArray.split(','))%2 != 0):
-                    new_dashArray = attributes[i]['stroke-dasharray'] + "," + attributes[i]['stroke-dasharray']
-                    dashPattern += f"        {new_dashArray}"
-                    len_dashArray = 2*len(dashArray.split(','))
-                else:
-                    dashPattern += f"        {attributes[i]['stroke-dasharray']}"
-                    len_dashArray = len(dashArray.split(','))
-                dashPattern += "\n};\n"
-                print(dashPattern)
-                strokeFeature += f"        .dashPatternCnt = {len_dashArray},\n"
-                strokeFeature += f"        .dashPattern = (float*)stroke_dash_pattern_path{i+1},\n"
+            strokeFeature += f"/*{attributes[i]['name']} id={attributes[i]['id']}*/\n"
+        stroke_dasharry_str = attributes[i]['stroke-dasharray']
+        if stroke_dasharry_str != None:
+            dashPattern = f"static float stroke_dash_pattern_path{i+1}[] = {{\n"
+            dashArray = list({attributes[i]['stroke-dasharray']})[0]
+            #if dash array length is odd then double the length of dash array and double dash array elements
+            if (len(dashArray.split(','))%2 != 0):
+                new_dashArray = attributes[i]['stroke-dasharray'] + "," + attributes[i]['stroke-dasharray']
+                dashPattern += f"        {new_dashArray}"
+                len_dashArray = 2*len(dashArray.split(','))
             else:
-                strokeFeature += f"        .dashPatternCnt = 0,\n"
-                strokeFeature += f"        .dashPattern = NULL,\n"
+                dashPattern += f"        {attributes[i]['stroke-dasharray']}"
+                len_dashArray = len(dashArray.split(','))
+            dashPattern += "\n};\n"
+            print(dashPattern)
+            strokeFeature += f"        .dashPatternCnt = {len_dashArray},\n"
+            strokeFeature += f"        .dashPattern = (float*)stroke_dash_pattern_path{i+1},\n"
         else:
             strokeFeature += f"        .dashPatternCnt = 0,\n"
             strokeFeature += f"        .dashPattern = NULL,\n"
