@@ -103,12 +103,11 @@ class SVGViewBox(BasicRect):
         self.width = float(viewbox_value[2])
         self.height = float(viewbox_value[3])
 
-    def transform(self, e):
-        attribute = e.get('transform',0)
-        # Get 1st transform values if available
-        attribute = attribute[0]
-        attributes = parse_transform(attribute)
-        #if len(viewbox_value) == 4:
+    def transform(self, alist):
+        # Transform list describes each individual transforms on path/shape
+        transform_list = alist['transform']
+        # parse_transform requires a single string of all successive transforms.
+        attributes = parse_transform(' '.join(transform_list))
         if self.width > 0 and self.height > 0:
             attributes[0][2] = attributes[0][2] - self.x
             attributes[1][2] = attributes[1][2] - self.y
@@ -328,8 +327,8 @@ class NodeProcessor:
         
         if len(path_transforms) > 1:
             path_transforms.reverse()
-            path_transforms = ' '.join(path_transforms)
 
+        # Return a list of transform
         return path_transforms
 
     def insert_missing_path_commands(self, commands):
