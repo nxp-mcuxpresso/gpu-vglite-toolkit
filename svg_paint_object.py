@@ -52,6 +52,10 @@ class GradientBase:
         offset = 0.0
         if 'offset' in stop:
             offset = self.convert_offset(stop['offset'])
+            if offset <= self.previous_offset:
+                offset = 1.0
+            self.previous_offset = offset
+
         if 'stop-color' in stop:
             name = stop['stop-color']
             stop_color, isSolidColor2 = CB.parse_color(name)
@@ -93,6 +97,7 @@ class LinearGradient(GradientBase):
     def __init__(self):
         self._valid:bool = False
         self.name = None
+        self.previous_offset = -1.0
         self.grad_index = -1
         self.stops: list[GradientStopPoints] = []
 
@@ -165,6 +170,7 @@ class RadialGradient(GradientBase):
     def __init__(self):
         self._valid:bool = False
         self.name = None
+        self.previous_offset = -1.0
         self.grad_index = -1
         self.stops: list[GradientStopPoints] = []
         self.cx = 0.0
