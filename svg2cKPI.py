@@ -1,5 +1,11 @@
 #! /usr/bin/env python3
 
+#
+# Copyright 2024 NXP
+#
+# SPDX-License-Identifier: MIT
+#
+
 # Read SVG into a list of path objects and list of dictionaries of attributes 
 # Update: You can now also extract the svg-attributes by setting
 # return_svg_attributes=True, or with the convenience function svg2paths2

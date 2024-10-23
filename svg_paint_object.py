@@ -1,3 +1,9 @@
+#
+# Copyright 2024 NXP
+#
+# SPDX-License-Identifier: MIT
+#
+
 import sys
 
 # Import application specific routines

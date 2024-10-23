@@ -1,4 +1,10 @@
 #
+# Copyright 2024 NXP
+#
+# SPDX-License-Identifier: MIT
+#
+
+#
 # This application transforms SVG file into path drawing instructions
 # which can be interpreted by VGLite driver
 #

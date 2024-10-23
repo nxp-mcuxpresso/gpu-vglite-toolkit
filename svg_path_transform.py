@@ -1,3 +1,9 @@
+#
+# Copyright 2024 NXP
+#
+# SPDX-License-Identifier: MIT
+#
+
 import numpy as np
 from svgpathtools import svg2paths
 

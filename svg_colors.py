@@ -1,3 +1,9 @@
+#
+# Copyright 2024 NXP
+#
+# SPDX-License-Identifier: MIT
+#
+
 SVG_DEFAULT_BLACK_COLOR = '0xff000000'
 
 # https://www.w3schools.com/colors/colors_hex.asp
