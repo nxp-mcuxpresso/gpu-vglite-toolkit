@@ -1,0 +1,44 @@
+From f05803820fdbf8a63be76f2c0089200c5a2e7dd9 Mon Sep 17 00:00:00 2001
+From: Harikrushna Parmar <harikrushna.parmar@nxp.com>
+Date: Wed, 29 May 2024 12:23:39 +0530
+Subject: [PATCH 1/6] MGG-1299 [#ccc] svgpathtools: Remove arc from
+ ellipse2pathd function and add cubic curve instead
+
+'arc' command in path-data is not supported in vglite toolkit
+
+Signed-off-by: Harikrushna Parmar <harikrushna.parmar@nxp.com>
+---
+ svgpathtools/svg_to_paths.py | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/svgpathtools/svg_to_paths.py b/svgpathtools/svg_to_paths.py
+index 65591af..ad29b19 100644
+--- a/svgpathtools/svg_to_paths.py
++++ b/svgpathtools/svg_to_paths.py
+@@ -46,12 +46,18 @@ def ellipse2pathd(ellipse):
+     cx = float(cx)
+     cy = float(cy)
+ 
+-    d = ''
+-    d += 'M' + str(cx - rx) + ',' + str(cy)
+-    d += 'a' + str(rx) + ',' + str(ry) + ' 0 1,0 ' + str(2 * rx) + ',0'
+-    d += 'a' + str(rx) + ',' + str(ry) + ' 0 1,0 ' + str(-2 * rx) + ',0'
++    PATH_KAPPA = 0.552284
++    rxKappa = rx * PATH_KAPPA;
++    ryKappa = ry * PATH_KAPPA;
+ 
+-    return d + 'z'
++    d = ''
++    d += 'M ' + str(cx) + ' ' + str(cy - ry)
++    d += ' C ' + str(cx + rxKappa) + ' ' + str(cy - ry) + ' ' + str(cx + rx) + ' ' + str(cy - ryKappa) + ' ' + str(cx + rx) + ' ' + str(cy)
++    d += ' C ' + str(cx + rx) + ' ' + str(cy + ryKappa) + ' ' + str(cx + rxKappa) + ' ' + str(cy + ry) + ' ' + str(cx) + ' ' + str(cy + ry)
++    d += ' C ' + str(cx - rxKappa) + ' ' + str(cy + ry) + ' ' + str(cx - rx) + ' ' + str(cy + ryKappa) + ' ' + str(cx - rx) + ' ' + str(cy)
++    d += ' C ' + str(cx - rx) + ' ' + str(cy - ryKappa) + ' ' + str(cx - rxKappa) + ' ' + str(cy - ry) + ' ' + str(cx) + ' ' + str(cy - ry)
++    
++    return d + ' Z'
+ 
+ 
+ def polyline2pathd(polyline, is_polygon=False):
+-- 
+2.34.1
+

@@ -1,0 +1,42 @@
+From 4c4cb51016b7f3eba2d620e2c445ee60ec03017e Mon Sep 17 00:00:00 2001
+From: Nilam Gaikwad <nilam.gaikwad@nxp.com>
+Date: Wed, 9 Oct 2024 19:33:19 +0530
+Subject: [PATCH 2/6] MGG-1299 [#ccc] svgpathtools: Changes to properly parse
+ command
+
+There needs to be a space between command and point data so that we
+can split draw commands and its arguments correctly.
+
+Signed-off-by: Nilam Gaikwad <nilam.gaikwad@nxp.com>
+---
+ svgpathtools/svg_to_paths.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/svgpathtools/svg_to_paths.py b/svgpathtools/svg_to_paths.py
+index ad29b19..dcf4c22 100644
+--- a/svgpathtools/svg_to_paths.py
++++ b/svgpathtools/svg_to_paths.py
+@@ -77,9 +77,9 @@ def polyline2pathd(polyline, is_polygon=False):
+     if is_polygon and closed:
+         points.append(points[0])
+ 
+-    d = 'M' + 'L'.join('{0} {1}'.format(x,y) for x,y in points)
++    d = 'M ' + ' L '.join('{0} {1}'.format(x,y) for x,y in points)
+     if is_polygon or closed:
+-        d += 'z'
++        d += ' z'
+     return d
+ 
+ 
+@@ -127,7 +127,7 @@ def rect2pathd(rect):
+     x2, y2 = x + w, y + h
+     x3, y3 = x, y + h
+ 
+-    d = ("M{} {} L {} {} L {} {} L {} {} z"
++    d = ("M {} {} L {} {} L {} {} L {} {} z"
+          "".format(x0, y0, x1, y1, x2, y2, x3, y3))
+         
+     return d
+-- 
+2.34.1
+

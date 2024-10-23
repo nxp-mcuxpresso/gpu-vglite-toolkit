@@ -25,10 +25,12 @@ INPUT_FILE=$1
 
 if [ ! -x $PWD/svgpathtools ]; then
     # External public MIT licensed repository
-    #git clone https://github.com/mathandy/svgpathtools.git
+    git clone https://github.com/mathandy/svgpathtools.git
 
-    # Internal NXP development repository
-    git clone -b vglite-tools-next ssh://git@bitbucket.sw.nxp.com/gtec/svgpathtools.git
+    # Apply NXP improvements into svgpathtools repository
+    cd svgpathtools
+    git am ../patches/*
+    cd -
 fi
 
 if [ ! -z "$2" ]; then
@@ -47,4 +49,5 @@ export PYTHONPATH=$PYTHONPATH:$PWD/svgpathtools
 
 # Actual SVG -> header Conversion
 python3 svg2cKPI.py ${INPUT_FILE} 1>"${OUTPUT_FILE}" 2>"${OUT_ERR}"
+echo Created ${OUTPUT_FILE} from ${INPUT_FILE}
 

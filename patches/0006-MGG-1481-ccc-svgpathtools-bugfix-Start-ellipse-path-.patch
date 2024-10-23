@@ -1,0 +1,42 @@
+From d7927a7453941c3bd024ef585feaaa64f825a1f7 Mon Sep 17 00:00:00 2001
+From: Harikrushna Parmar <harikrushna.parmar@nxp.com>
+Date: Wed, 9 Oct 2024 13:25:38 +0530
+Subject: [PATCH 6/6] MGG-1481 [#ccc] svgpathtools: bugfix: Start ellipse path
+ from rightmost point and draw clockwise
+
+Signed-off-by: Harikrushna Parmar <harikrushna.parmar@nxp.com>
+---
+ svgpathtools/svg_to_paths.py | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/svgpathtools/svg_to_paths.py b/svgpathtools/svg_to_paths.py
+index 824d062..218f036 100644
+--- a/svgpathtools/svg_to_paths.py
++++ b/svgpathtools/svg_to_paths.py
+@@ -50,12 +50,21 @@ def ellipse2pathd(ellipse):
+     rxKappa = rx * PATH_KAPPA;
+     ryKappa = ry * PATH_KAPPA;
+ 
++    #According to the SVG specification (https://lists.w3.org/Archives/Public/www-archive/2005May/att-0005/SVGT12_Main.pdf),
++    #Section 9.4, "The 'ellipse' element": "The arc of an 'ellipse' element begins at the "3 o'clock" point on
++    #the radius and progresses towards the "9 o'clock". Therefore, the ellipse begins at the rightmost point
++    #and progresses clockwise.
+     d = ''
+-    d += 'M ' + str(cx) + ' ' + str(cy - ry)
+-    d += ' C ' + str(cx + rxKappa) + ' ' + str(cy - ry) + ' ' + str(cx + rx) + ' ' + str(cy - ryKappa) + ' ' + str(cx + rx) + ' ' + str(cy)
++    # Move to the rightmost point
++    d += 'M ' + str(cx + rx) + ' ' + str(cy)
++    # Draw bottom-right quadrant
+     d += ' C ' + str(cx + rx) + ' ' + str(cy + ryKappa) + ' ' + str(cx + rxKappa) + ' ' + str(cy + ry) + ' ' + str(cx) + ' ' + str(cy + ry)
++    # Draw bottom-left quadrant
+     d += ' C ' + str(cx - rxKappa) + ' ' + str(cy + ry) + ' ' + str(cx - rx) + ' ' + str(cy + ryKappa) + ' ' + str(cx - rx) + ' ' + str(cy)
++    # Draw top-left quadrant
+     d += ' C ' + str(cx - rx) + ' ' + str(cy - ryKappa) + ' ' + str(cx - rxKappa) + ' ' + str(cy - ry) + ' ' + str(cx) + ' ' + str(cy - ry)
++    # Draw top-right quadrant
++    d += ' C ' + str(cx + rxKappa) + ' ' + str(cy - ry) + ' ' + str(cx + rx) + ' ' + str(cy - ryKappa) + ' ' + str(cx + rx) + ' ' + str(cy)
+     
+     return d + ' Z'
+ 
+-- 
+2.34.1
+
