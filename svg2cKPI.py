@@ -420,12 +420,12 @@ def process_painting(color_data):
     po: PaintObject = make_paint_object(color_data)
 
     if po.lg.is_valid():
-        print(po.lg.to_string())
+        print(po.lg.to_string(get_input_file_cname(), get_current_unique_id()))
         lingrad_to_path_output += f"    &{imageName}_linear_gradients_{po.lg.grad_index},\n"
         radgrad_to_path_output += f"    NULL,\n"
         grad_found = True
     elif po.rg.is_valid():
-        print(po.rg.to_string())
+        print(po.rg.to_string(get_input_file_cname(), get_current_unique_id()))
         lingrad_to_path_output += f"    NULL,\n"
         radgrad_to_path_output += f"    &{imageName}_radial_gradients_{po.rg.grad_index},\n"
         grad_found = True
@@ -444,7 +444,7 @@ transform_output = f"static float {imageName}_transform_matrix[] = {{\n"
 fill_rule_output = f"static vg_lite_fill_t {imageName}_fill_rule[] = {{\n"
 g_active_node = None
 
-update_global_callback_context(parse_color, get_current_unique_id, get_input_file_cname)
+update_global_callback_context(parse_color)
 
 for redpath in paths:
     p_cmd_arg = redpath.d()

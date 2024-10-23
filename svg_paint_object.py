@@ -3,8 +3,9 @@ import sys
 # Import application specific routines
 from svg_colors import SVG_DEFAULT_BLACK_COLOR
 from svg_global_callback_context import *
+from svg_global_callback_context import GlobalCallbackCtx
 
-CB = get_global_callback_context()
+CB: GlobalCallbackCtx = get_global_callback_context()
 
 def get_min_max_coordinates(parsed_lines):
     min_x = min(coord[0] for coord in parsed_lines)
@@ -142,16 +143,16 @@ class LinearGradient(GradientBase):
         # Finally mark gradient as valid
         self._valid = True
 
-    def to_string(self):
+    def to_string(self, input_file_cname, unique_id):
         # local variables
         str_buf = ''
         if len(self.stops) == 0 or self.is_valid == False:
             return str_buf
 
-        prefix = f"linearGrad_{CB.get_current_unique_id()}"
+        prefix = f"linearGrad_{unique_id}"
         str_buf = self._stops_to_string(prefix,self.stops)
 
-        str_buf += f"static linearGradient_t {CB.get_input_file_cname()}_linear_gradients_{self.grad_index}[] = {{\n"
+        str_buf += f"static linearGradient_t {input_file_cname}_linear_gradients_{self.grad_index}[] = {{\n"
         str_buf += f"    {{\n"
         str_buf += f"        /*grad id={self.name}*/\n"
         str_buf += f"        .num_stop_points = {len(self.stops)},\n"
@@ -232,16 +233,16 @@ class RadialGradient(GradientBase):
         self._valid = True
 
 
-    def to_string(self):
+    def to_string(self, input_file_cname, unique_id):
         # local variables
         str_buf = ''
         if len(self.stops) == 0 or self.is_valid == False:
             return str_buf
 
-        prefix = f"radialGrad_{CB.get_current_unique_id()}"
+        prefix = f"radialGrad_{unique_id}"
         str_buf = self._stops_to_string(prefix,self.stops)
 
-        str_buf += f"static radialGradient_t {CB.get_input_file_cname()}_radial_gradients_{self.grad_index}[] = {{\n"
+        str_buf += f"static radialGradient_t {input_file_cname}_radial_gradients_{self.grad_index}[] = {{\n"
         str_buf += f"    {{\n"
         str_buf += f"        /*grad id={self.name}*/\n"
         str_buf += f"        .num_stop_points = {len(self.stops)},\n"
