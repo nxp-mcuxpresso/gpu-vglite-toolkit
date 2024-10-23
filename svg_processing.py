@@ -15,11 +15,6 @@
 #     * linear gradient
 #     * radial gradient
 # 
-# Known Limitations
-#  * Opacitity is not supported
-#  * font support will be available by Dec 2024
-#  * Line with less than 0.5 pixels don't render
-#  * TODO: Add any additional limitations discovered during SVGT12 testing
 
 # External dependencies
 from __future__ import division, absolute_import, print_function

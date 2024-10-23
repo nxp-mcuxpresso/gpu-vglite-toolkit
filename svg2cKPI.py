@@ -605,10 +605,6 @@ for redpath in paths:
             stroke_po.paint_mode = 'STROKE'
         fill_path_grad.append(stroke_po.paint_mode)
 
-    # TODO: handle fallback mode
-    # if fall_back_feature == True:
-    #     strokeFeature, fall_back_feature = handle_fallback_feature(strokeFeature, fall_back_feature)
-
     if 'transform' in attributes[i]:
         attributes[i]['path_transform'] = convert_transform(attributes[i]['path_transform'])
         transform_output += f"{attributes[i]['path_transform']},\n"

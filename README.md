@@ -26,3 +26,7 @@ clock_freertos application demonstrates generating graphics assets using gpu-vgl
 * At the moment only shape elements are support.
 * Font support implementation is ongoing.
 * Image support implementation is ongoing.
+* Opacity is not supported
+* font support will be available by Dec 2024
+* image support will be available by Dec 2024
+* Fallback paint color feature will be available by Dec 2024
