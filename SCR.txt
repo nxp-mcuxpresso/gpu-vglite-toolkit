@@ -1,0 +1,13 @@
+NXP Software Content Register
+
+--------------------------------------------
+
+Package:                   gpu-vglite-toolkit
+Outgoing License:          MIT
+License File:              LICENSE.txt
+Package Category:          GPU VGLite toolkit application
+Type of content:           Python source and shell scripts
+Description and comments:  Python based VGLite toolkit to create graphics assets from SVG file
+Release Location:          https://github.com/nxp-mcuxpresso/gpu-vglite-toolkit
+Origin:                    NXP
+                           NXP https://github.com/nxp-mcuxpresso/gpu-vglite-toolkit
