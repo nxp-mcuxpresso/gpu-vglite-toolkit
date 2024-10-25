@@ -21,6 +21,7 @@ from svg_global_callback_context import *
 
 CB = get_global_callback_context()
 from svg_paint_object import PaintObject
+from svg_processing import BasicRect
 
 def check_command_line_arguments():
     """
@@ -193,6 +194,7 @@ print("")
 print("typedef struct path_info {")
 print("    uint32_t  path_length;")
 print("    %s  *path_data;" % data_type)
+print("    float bounding_box[4];" )
 print("    uint8_t end_path_flag;" )
 print("} path_info_t;")
 print("")
@@ -443,6 +445,7 @@ strokeFeature = f"static stroke_info_t {imageName}_stroke_info_data[] = {{\n"
 lingrad_to_path_output = f"static linearGradient_t *{imageName}_lingrad_to_path[] = {{\n"
 radgrad_to_path_output = f"static radialGradient_t *{imageName}_radgrad_to_path[] = {{\n"
 transform_output = f"static float {imageName}_transform_matrix[] = {{\n"
+bounding_boxes = []
 fill_rule_output = f"static vg_lite_fill_t {imageName}_fill_rule[] = {{\n"
 g_active_node = None
 INVALID_PAINT_OBJECT = PaintObject()
@@ -466,6 +469,9 @@ for redpath in paths:
     print("    {.cmd=VLC_OP_END}")
     print("};")
     print("")
+
+    min_x, max_x, min_y, max_y = get_min_max_coordinates(parsed_lines)
+    bounding_boxes.append(BasicRect(min_x, min_y, max_x, max_y))
 
     # In vg_lite_path_t, the add_end is set to zero by default, leading to an extra
     # path being rendered between the start and end points. Setting it to '1'
@@ -704,9 +710,19 @@ print("    .paths_info = {")
 for i, new_id_value in enumerate(generated_ids):
     path_name = "%s_%s_data" % (imageName, new_id_value)
     if i == len(paths) - 1:
-        print("        {.path_length = sizeof(%s), .path_data=(%s*)%s, .end_path_flag=%d }" % (path_name, data_type, path_name, end_path_ctrl[i]))
+        print("        {.path_length = sizeof(%s), .path_data=(%s*)%s, .end_path_flag=%d, .bounding_box = {%0.2f, %0.2f, %0.2f, %0.2f} }" %
+              (path_name, data_type, path_name, end_path_ctrl[i],
+               bounding_boxes[i].x,
+               bounding_boxes[i].y,
+               bounding_boxes[i].width,
+               bounding_boxes[i].height))
     else:
-        print("        {.path_length = sizeof(%s), .path_data=(%s*)%s, .end_path_flag=%d }," % (path_name, data_type, path_name, end_path_ctrl[i]))
+        print("        {.path_length = sizeof(%s), .path_data=(%s*)%s, .end_path_flag=%d, .bounding_box = {%0.2f, %0.2f, %0.2f, %0.2f} }," %
+              (path_name, data_type, path_name, end_path_ctrl[i],
+               bounding_boxes[i].x,
+               bounding_boxes[i].y,
+               bounding_boxes[i].width,
+               bounding_boxes[i].height))
 print("    },")
 print("};")
 print("")

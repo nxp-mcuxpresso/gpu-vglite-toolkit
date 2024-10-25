@@ -83,11 +83,11 @@ if _DEBUG==1:
 
 
 class BasicRect:
-    def __init__(self):
-        self.x = -1
-        self.y = -1
-        self.width = -1
-        self.height = -1
+    def __init__(self, x=-1, y=-1, width=-1, height=-1):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
 
 class SVGRoot(BasicRect):
     pass
