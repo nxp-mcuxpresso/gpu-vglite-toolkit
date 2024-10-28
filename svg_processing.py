@@ -422,6 +422,7 @@ class NodeProcessor:
                 # Set default as black color
                 value = SVG_DEFAULT_BLACK_COLOR
                 attr_dict[key] = value
+                element.setAttribute(key,SVG_DEFAULT_BLACK_COLOR)
 
         # If current element don't have required property, or it contains 'inherit'
         # traverse parent node and get required properties
