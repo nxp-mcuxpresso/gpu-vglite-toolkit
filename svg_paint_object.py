@@ -264,3 +264,6 @@ class PaintObject:
         self.lg = LinearGradient()
         self.rg = RadialGradient()
         self.solid = SolidColor(SVG_DEFAULT_BLACK_COLOR)
+
+    def has_valid_gradient(self):
+        return self.lg.is_valid() or self.rg.is_valid()
