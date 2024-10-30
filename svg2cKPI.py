@@ -500,13 +500,13 @@ for redpath in paths:
     fill_color, isSolidColor2 = parse_color(fill_str)
     color_data.append(fill_color)
 
+    strokeFeature += f"    {{\n"
+    if 'id' in attributes[i]:
+        strokeFeature += f"/*{attributes[i]['name']} id={attributes[i]['id']}*/\n"
     if stroke_str != None:
         out_cmd.extend('S')
         strokePresent = True
         stroke_flag = True
-        strokeFeature += f"    {{\n"
-        if 'id' in attributes[i]:
-            strokeFeature += f"/*{attributes[i]['name']} id={attributes[i]['id']}*/\n"
         stroke_dasharry_str = attributes[i]['stroke-dasharray']
         if stroke_dasharry_str != None:
             dashPattern = f"static float stroke_dash_pattern_path{i+1}[] = {{\n"
@@ -568,13 +568,8 @@ for redpath in paths:
         # Default stroke-linejoin is VG_LITE_JOIN_MITER
         value = _map_with_dictionary('stroke-linejoin', 'VG_LITE_JOIN_MITER', attributes[i], _MAP_STROKE_LINEJOIN)
         strokeFeature += f"        .linejoin = {value}\n"
-        strokeFeature += f"    }},\n"
-    else:
-        strokeFeature += f"    {{\n"
-        if 'id' in attributes[i]:
-            strokeFeature += f"/*path id={attributes[i]['id']}*/\n"
-        strokeFeature += f"        NULL,\n"
-        strokeFeature += f"    }},\n"
+
+    strokeFeature += f"    }},\n"
 
     if 'style' in attributes[i] and attributes[i]['style'] != None:
         # fill-paint
