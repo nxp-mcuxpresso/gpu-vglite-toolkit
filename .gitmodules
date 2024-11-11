@@ -1,0 +1,4 @@
+[submodule "svgpathtools"]
+	path = svgpathtools
+	url = https://github.com/nxp-mcuxpresso/svgpathtools
+	branch = release/vglite-tools-2.0

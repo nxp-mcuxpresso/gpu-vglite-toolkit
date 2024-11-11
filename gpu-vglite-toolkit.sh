@@ -23,14 +23,9 @@
 
 INPUT_FILE=$1
 
-if [ ! -x $PWD/svgpathtools ]; then
-    # External public MIT licensed repository
-    git clone https://github.com/mathandy/svgpathtools.git
-
-    # Apply NXP improvements into svgpathtools repository
-    cd svgpathtools
-    git am ../patches/*
-    cd -
+if [ ! -x $PWD/svgpathtools/.git ]; then
+    git submodule init
+    git submodule update
 fi
 
 if [ ! -z "$2" ]; then
