@@ -44,6 +44,6 @@ OUT_ERR=$(echo $(basename ${INPUT_FILE}) | sed 's/\.svg/\.err/')
 export PYTHONPATH=$PYTHONPATH:$PWD/svgpathtools
 
 # Actual SVG -> header Conversion
-python3 svg2cKPI.py ${INPUT_FILE} 1>"${OUTPUT_FILE}" 2>"${OUT_ERR}"
+python3 svg2h.py ${INPUT_FILE} 1>"${OUTPUT_FILE}" 2>"${OUT_ERR}"
 echo Created ${OUTPUT_FILE} from ${INPUT_FILE}
 
