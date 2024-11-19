@@ -24,6 +24,7 @@
 INPUT_FILE=$1
 
 if [ ! -x $PWD/svgpathtools/.git ]; then
+    pip3 install -r requirements.txt
     git submodule init
     git submodule update
 fi
