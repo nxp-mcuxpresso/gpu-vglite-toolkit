@@ -11,6 +11,13 @@ This application is implemented in python3 and platform independent.
 | --- | --- | --- |
 | svgpathtools | https://github.com/mathandy/svgpathtools | MIT |
 
+### NOTE
+
+1. On 1st run of gpu-vglite-toolkit.sh it clones svgpathtools with NXP fixes and due to git fetch it can take some time.
+2. When in DEVELOPEMNT use internal URL
+3. Ensure PYTHONPATH contains svgpathtools with NXP fixes
+   e.g. export PYTHONPATH=$PYTHONPATH:/opt/nxp/gpu-vglite-toolkit/svgpathtools
+
 ### Usage
 
 ```bash
