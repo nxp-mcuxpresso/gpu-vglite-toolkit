@@ -63,7 +63,7 @@ _ATTRIB_NECESSARY_FOR_DRAWING = {'fill', 'fill-rule', 'stroke', 'stroke-width',
 _ATTRIB_SUPPORTING_CURRENT_COLOR = {'fill-rule', 'stroke', 'fill','solid-color','stop-color'}
 
 # Mapping of arguments for each VG draw commands.
-_CMD_PARAM_TABLE: dict[str, int] = {
+_CMD_PARAM_TABLE = {
     'M': 2, 'm': 2,
     'L': 2, 'l': 2,
     'T': 2, 't': 2,
