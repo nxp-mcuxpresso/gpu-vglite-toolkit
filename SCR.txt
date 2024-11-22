@@ -11,3 +11,16 @@ Description and comments:  Python based VGLite toolkit to create graphics assets
 Release Location:          https://github.com/nxp-mcuxpresso/gpu-vglite-toolkit
 Origin:                    NXP
                            NXP https://github.com/nxp-mcuxpresso/gpu-vglite-toolkit
+
+--------------------------------------------
+
+Package:                   tests
+Outgoing License:          W3C test suite license - 2023 version
+License File:              W3C-TEST-SUITE_LICENSE.txt
+Package Category:          SVG Test files
+Type of content:           SVG files
+Description and comments:  SVG 1.2 Tiny test suite vectors
+Release Location:          https://github.com/nxp-mcuxpresso/gpu-vglite-toolkit/tests
+Origin:                    W3C - https://www.w3.org/Graphics/SVG/Test/20080912/W3C_SVG_12_TinyTestSuite.tar.gz
+
+--------------------------------------------
